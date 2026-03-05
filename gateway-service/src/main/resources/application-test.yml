@@ -1,0 +1,17 @@
+server:
+  port: 0
+
+spring:
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      routes: []
+
+jwt:
+  secret: dGVzdC1qd3Qtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMy
+  expiration: 1h
+
+eureka:
+  client:
+    enabled: false
