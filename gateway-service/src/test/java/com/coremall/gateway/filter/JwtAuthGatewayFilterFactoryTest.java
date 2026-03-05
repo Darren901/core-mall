@@ -7,9 +7,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -25,8 +25,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("JwtAuthFilter - Gateway JWT 驗證 Filter")
-class JwtAuthFilterTest {
+@DisplayName("JwtAuthGatewayFilterFactory - route-level JWT 驗證")
+class JwtAuthGatewayFilterFactoryTest {
 
     @Mock
     private JwtUtils jwtUtils;
@@ -34,23 +34,13 @@ class JwtAuthFilterTest {
     @Mock
     private GatewayFilterChain chain;
 
-    @InjectMocks
-    private JwtAuthFilter jwtAuthFilter;
+    private GatewayFilter gatewayFilter;
 
     @BeforeEach
     void setUp() {
+        JwtAuthGatewayFilterFactory factory = new JwtAuthGatewayFilterFactory(jwtUtils);
+        gatewayFilter = factory.apply(new JwtAuthGatewayFilterFactory.Config());
         lenient().when(chain.filter(any())).thenReturn(Mono.empty());
-    }
-
-    @Test
-    @DisplayName("auth 公開路徑不需 token，直接轉發")
-    void shouldPassThroughPublicAuthPaths() {
-        MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.post("/api/v1/auth/login").build());
-
-        jwtAuthFilter.filter(exchange, chain).block();
-
-        verify(chain).filter(any());
     }
 
     @Test
@@ -59,7 +49,7 @@ class JwtAuthFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/v1/agent/chat").build());
 
-        jwtAuthFilter.filter(exchange, chain).block();
+        gatewayFilter.filter(exchange, chain).block();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(chain, never()).filter(any());
@@ -73,7 +63,7 @@ class JwtAuthFilterTest {
                         .header("Authorization", "Basic dXNlcjpwYXNz")
                         .build());
 
-        jwtAuthFilter.filter(exchange, chain).block();
+        gatewayFilter.filter(exchange, chain).block();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(chain, never()).filter(any());
@@ -90,7 +80,7 @@ class JwtAuthFilterTest {
                         .header("Authorization", "Bearer invalid-token")
                         .build());
 
-        jwtAuthFilter.filter(exchange, chain).block();
+        gatewayFilter.filter(exchange, chain).block();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verify(chain, never()).filter(any());
@@ -109,7 +99,7 @@ class JwtAuthFilterTest {
                         .build());
 
         ArgumentCaptor<ServerWebExchange> captor = ArgumentCaptor.forClass(ServerWebExchange.class);
-        jwtAuthFilter.filter(exchange, chain).block();
+        gatewayFilter.filter(exchange, chain).block();
 
         verify(chain).filter(captor.capture());
         assertThat(captor.getValue().getRequest().getHeaders().getFirst("X-User-Id"))

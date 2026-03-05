@@ -3,7 +3,7 @@
 - [x] 1.1 建立 `discovery-service` 模組（Eureka Server），加入 parent pom
 - [x] 1.2 建立 `gateway-service` 模組（Spring Cloud Gateway），加入 parent pom
 - [x] 1.3 設定 gateway 路由：`/api/v1/auth/**` → user-service，`/api/v1/agent/**` → agent-service
-- [x] 1.4 實作 Gateway JWT 驗證 Filter：驗證通過後注入 `X-User-Id` header
+- [x] 1.4 實作 Gateway JWT 驗證 Filter（`JwtAuthGatewayFilterFactory`，route-level）：驗證通過後注入 `X-User-Id` header
 - [x] 1.5 各服務 application-dev.yml 加入 Eureka 註冊設定，驗證服務能互相發現
 
 ## 2. shared-kernel
