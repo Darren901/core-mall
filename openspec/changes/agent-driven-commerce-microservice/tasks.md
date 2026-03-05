@@ -8,9 +8,9 @@
 
 ## 2. shared-kernel
 
-- [ ] 2.1 實作 JWT 工具類（sign / parse），以 `@ConfigurationProperties` 管理 secret 與 TTL
-- [ ] 2.2 定義共用 Response 格式（ApiResponse wrapper）與 ErrorCode 常數
-- [ ] 2.3 確認 shared-kernel 能被其他模組引用，mvn clean compile 通過
+- [x] 2.1 實作 JWT 工具類（sign / parse），以 `@ConfigurationProperties` 管理 secret 與 TTL
+- [x] 2.2 定義共用 Response 格式（ApiResponse wrapper）與 ErrorCode 常數
+- [x] 2.3 確認 shared-kernel 能被其他模組引用，mvn clean compile 通過
 
 ## 3. user-service
 

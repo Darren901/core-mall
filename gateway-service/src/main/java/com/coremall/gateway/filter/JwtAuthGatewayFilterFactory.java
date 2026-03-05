@@ -1,6 +1,6 @@
 package com.coremall.gateway.filter;
 
-import com.coremall.gateway.util.JwtUtils;
+import com.coremall.sharedkernel.jwt.JwtTokenProvider;
 import io.jsonwebtoken.JwtException;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -11,11 +11,11 @@ import org.springframework.web.server.ServerWebExchange;
 @Component
 public class JwtAuthGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtAuthGatewayFilterFactory.Config> {
 
-    private final JwtUtils jwtUtils;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public JwtAuthGatewayFilterFactory(JwtUtils jwtUtils) {
+    public JwtAuthGatewayFilterFactory(JwtTokenProvider jwtTokenProvider) {
         super(Config.class);
-        this.jwtUtils = jwtUtils;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public static class Config {}
@@ -29,7 +29,7 @@ public class JwtAuthGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
             }
             String token = authHeader.substring(7);
             try {
-                String userId = jwtUtils.extractUserId(token);
+                String userId = jwtTokenProvider.extractUserId(token);
                 ServerWebExchange mutated = exchange.mutate()
                         .request(r -> r.header("X-User-Id", userId))
                         .build();

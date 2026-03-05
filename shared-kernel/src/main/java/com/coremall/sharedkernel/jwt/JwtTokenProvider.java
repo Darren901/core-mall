@@ -1,6 +1,5 @@
-package com.coremall.gateway.util;
+package com.coremall.sharedkernel.jwt;
 
-import com.coremall.gateway.config.JwtProperties;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -8,21 +7,33 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.time.Instant;
+import java.util.Date;
 
+/**
+ * JWT 簽發與解析工具。
+ * 由各服務透過 @EnableConfigurationProperties(JwtProperties.class) 啟用。
+ */
 @Component
-public class JwtUtils {
+public class JwtTokenProvider {
 
     private final JwtProperties properties;
 
-    public JwtUtils(JwtProperties properties) {
+    public JwtTokenProvider(JwtProperties properties) {
         this.properties = properties;
     }
 
-    /**
-     * token 中萃取 userId（subject claim）。
-     *
-     * @throws JwtException token 無效、過期或簽名不符
-     */
+    public String generateToken(String userId) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(userId)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(properties.expiration())))
+                .signWith(signingKey())
+                .compact();
+    }
+
+    /** @throws JwtException token 無效或已過期 */
     public String extractUserId(String token) throws JwtException {
         return Jwts.parser()
                 .verifyWith(signingKey())

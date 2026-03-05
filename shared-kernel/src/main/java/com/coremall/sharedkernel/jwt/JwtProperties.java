@@ -1,12 +1,9 @@
-package com.coremall.gateway.config;
+package com.coremall.sharedkernel.jwt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 
 @ConfigurationProperties(prefix = "jwt")
-public record JwtProperties(
-        String secret,
-        Duration expiration
-) {
+public record JwtProperties(String secret, Duration expiration) {
 }

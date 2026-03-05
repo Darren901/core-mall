@@ -1,6 +1,6 @@
 package com.coremall.gateway.filter;
 
-import com.coremall.gateway.util.JwtUtils;
+import com.coremall.sharedkernel.jwt.JwtTokenProvider;
 import io.jsonwebtoken.JwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 class JwtAuthGatewayFilterFactoryTest {
 
     @Mock
-    private JwtUtils jwtUtils;
+    private JwtTokenProvider jwtTokenProvider;
 
     @Mock
     private GatewayFilterChain chain;
@@ -38,7 +38,7 @@ class JwtAuthGatewayFilterFactoryTest {
 
     @BeforeEach
     void setUp() {
-        JwtAuthGatewayFilterFactory factory = new JwtAuthGatewayFilterFactory(jwtUtils);
+        JwtAuthGatewayFilterFactory factory = new JwtAuthGatewayFilterFactory(jwtTokenProvider);
         gatewayFilter = factory.apply(new JwtAuthGatewayFilterFactory.Config());
         lenient().when(chain.filter(any())).thenReturn(Mono.empty());
     }
@@ -72,7 +72,7 @@ class JwtAuthGatewayFilterFactoryTest {
     @Test
     @DisplayName("token 無效時回傳 401")
     void shouldReturn401WhenTokenIsInvalid() {
-        when(jwtUtils.extractUserId("invalid-token"))
+        when(jwtTokenProvider.extractUserId("invalid-token"))
                 .thenThrow(new JwtException("invalid token"));
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
@@ -91,7 +91,7 @@ class JwtAuthGatewayFilterFactoryTest {
     void shouldInjectUserIdHeaderWhenTokenIsValid() {
         String validToken = "valid.jwt.token";
         String userId = "user-uuid-123";
-        when(jwtUtils.extractUserId(validToken)).thenReturn(userId);
+        when(jwtTokenProvider.extractUserId(validToken)).thenReturn(userId);
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/v1/agent/chat")
