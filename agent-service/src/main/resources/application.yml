@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: agent-service
+  profiles:
+    active: dev

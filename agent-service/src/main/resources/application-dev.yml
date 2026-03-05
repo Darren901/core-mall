@@ -1,0 +1,31 @@
+server:
+  port: 8083
+
+spring:
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/agent_db}
+    username: ${DB_USERNAME:agent}
+    password: ${DB_PASSWORD:agent}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+  ai:
+    google:
+      genai:
+        api-key: ${GOOGLE_GENAI_API_KEY:}
+        chat:
+          options:
+            model: gemini-2.5-flash
+            temperature: 0.2
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
