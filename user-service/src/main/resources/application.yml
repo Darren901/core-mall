@@ -3,3 +3,10 @@ spring:
     name: user-service
   profiles:
     active: dev
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate

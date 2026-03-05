@@ -4,17 +4,14 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
 
 /**
- * JWT 簽發與解析工具。
- * 由各服務透過 @EnableConfigurationProperties(JwtProperties.class) 啟用。
+ * JWT 簽發與解析工具。由 JwtAutoConfiguration 自動注冊為 Spring Bean。
  */
-@Component
 public class JwtTokenProvider {
 
     private final JwtProperties properties;

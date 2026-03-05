@@ -14,12 +14,12 @@
 
 ## 3. user-service
 
-- [ ] 3.1 建立 Flyway migration：`V1__create_users_table.sql`
-- [ ] 3.2 實作 `User` entity 與 `UserRepository`
-- [ ] 3.3 實作 `AuthService`：register（BCrypt）、login（驗密碼 + 簽 JWT）
-- [ ] 3.4 實作 `AuthController`：`POST /api/v1/auth/register`（201）、`POST /api/v1/auth/login`（200）
-- [ ] 3.5 寫單元測試：register 重複 email 回 409、login 錯誤密碼回 401
-- [ ] 3.6 寫整合測試（Testcontainers PostgreSQL）：完整 register → login 流程
+- [x] 3.1 建立 Flyway migration：`V1__create_users_table.sql`
+- [x] 3.2 實作 `User` entity 與 `UserRepository`
+- [x] 3.3 實作 `AuthService`：register（BCrypt）、login（驗密碼 + 簽 JWT）
+- [x] 3.4 實作 `AuthController`：`POST /api/v1/auth/register`（201）、`POST /api/v1/auth/login`（200）
+- [x] 3.5 寫單元測試：register 重複 email 回 409、login 錯誤密碼回 401
+- [x] 3.6 寫整合測試（Testcontainers PostgreSQL）：完整 register → login 流程
 
 ## 4. order-service：核心 CRUD + Redis Write-Behind
 
