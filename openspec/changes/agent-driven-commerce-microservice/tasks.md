@@ -23,17 +23,17 @@
 
 ## 4. order-service：核心 CRUD + Redis Write-Behind
 
-- [ ] 4.1 建立 Flyway migration：`V1__create_orders_table.sql`、`V2__create_outbox_events_table.sql`
-- [ ] 4.2 實作 `Order` entity、`OutboxEvent` entity 與對應 Repository
-- [ ] 4.3 實作 `RedisConfig`：StringRedisTemplate，定義 key 命名規則與 TTL
-- [ ] 4.4 實作 `OrderCommandService`：write-behind 流程（寫 Redis → 回傳）
-- [ ] 4.5 實作 `OrderQueryService`：Redis 優先查詢，cache miss fallback 到 PostgreSQL
-- [ ] 4.6 實作 `OrderController`（`/internal/v1/orders/**`）：POST / PATCH / DELETE / GET
-- [ ] 4.7 實作分散式鎖（Redis SETNX + TTL），整合進 update / cancel 流程
-- [ ] 4.8 實作冪等鍵檢查（Redis，key = `idem:{idempotency-key}`）
-- [ ] 4.9 實作 `OutboxRelayService`（`@Scheduled`）：讀 Redis → 寫 PostgreSQL + outbox_event（同交易）
-- [ ] 4.10 寫單元測試：冪等鍵重複請求回傳同一訂單、並發鎖衝突回傳 transient error
-- [ ] 4.11 寫整合測試（Testcontainers PostgreSQL + Redis）：write-behind relay 後 DB 有資料
+- [x] 4.1 建立 Flyway migration：`V1__create_orders_table.sql`、`V2__create_outbox_events_table.sql`
+- [x] 4.2 實作 `Order` entity、`OutboxEvent` entity 與對應 Repository
+- [x] 4.3 實作 `RedisConfig`：StringRedisTemplate，定義 key 命名規則與 TTL
+- [x] 4.4 實作 `OrderCommandService`：write-behind 流程（寫 Redis → 回傳）
+- [x] 4.5 實作 `OrderQueryService`：Redis 優先查詢，cache miss fallback 到 PostgreSQL
+- [x] 4.6 實作 `OrderController`（`/internal/v1/orders/**`）：POST / PATCH / DELETE / GET
+- [x] 4.7 實作分散式鎖（Redis SETNX + TTL），整合進 update / cancel 流程
+- [x] 4.8 實作冪等鍵檢查（Redis，key = `idem:{idempotency-key}`）
+- [x] 4.9 實作 `OutboxRelayService`（`@Scheduled`）：讀 Redis → 寫 PostgreSQL + outbox_event（同交易）
+- [x] 4.10 寫單元測試：冪等鍵重複請求回傳同一訂單、並發鎖衝突回傳 transient error
+- [x] 4.11 寫整合測試（Testcontainers PostgreSQL + Redis）：write-behind relay 後 DB 有資料
 
 ## 5. order-service：Outbox + RabbitMQ
 
