@@ -44,16 +44,16 @@
 
 ## 6. agent-service：ChatClient + Function Calling
 
-- [ ] 6.1 建立 Flyway migration：`V1__create_agent_runs_table.sql`、`V2__create_agent_steps_table.sql`
-- [ ] 6.2 實作 `AgentRun` / `AgentStep` entity 與 Repository
-- [ ] 6.3 設定 `WebClientConfig`：order-service 內部呼叫用的 WebClient（base URL 從 Eureka 解析）
-- [ ] 6.4 設定 `SpringAiConfig`：ChatClient bean，綁定 Gemini API key
-- [ ] 6.5 實作 `OrderAgentTools`：四個 `@Tool` 方法（createOrder / updateOrder / cancelOrder / getOrderStatus）
-- [ ] 6.6 每個 @Tool 方法：先查 Redis 冪等鍵（同步），再呼叫 order-service，`@Async` 寫 AgentStep
-- [ ] 6.7 實作 `AgentRunService`：建立 AgentRun → 背景執行 ChatClient → Sinks 推 SSE 事件
-- [ ] 6.8 實作 `AgentChatController`：`POST /api/v1/agent/chat`（202）、`GET /api/v1/agent/sessions/{id}/stream`（SSE）
-- [ ] 6.9 寫單元測試：mock ChatClient，驗證三步驟訊息觸發正確的 tool 序列
-- [ ] 6.10 寫整合測試：完整 chat → SSE 事件序列 → AgentStep DB 記錄驗證
+- [x] 6.1 建立 Flyway migration：`V1__create_agent_runs_table.sql`、`V2__create_agent_steps_table.sql`
+- [x] 6.2 實作 `AgentRun` / `AgentStep` entity 與 Repository
+- [x] 6.3 設定 `WebClientConfig`：order-service 內部呼叫用的 WebClient（base URL 從 Eureka 解析）
+- [x] 6.4 設定 `SpringAiConfig`：ChatClient bean，綁定 Gemini API key
+- [x] 6.5 實作 `OrderAgentTools`：四個 `@Tool` 方法（createOrder / updateOrder / cancelOrder / getOrderStatus）
+- [x] 6.6 每個 @Tool 方法：先查 Redis 冪等鍵（同步），再呼叫 order-service，`@Async` 寫 AgentStep
+- [x] 6.7 實作 `AgentRunService`：建立 AgentRun → 背景執行 ChatClient → Sinks 推 SSE 事件
+- [x] 6.8 實作 `AgentChatController`：`POST /api/v1/agent/chat`（202）、`GET /api/v1/agent/sessions/{id}/stream`（SSE）
+- [x] 6.9 寫單元測試：mock ChatClient，驗證三步驟訊息觸發正確的 tool 序列
+- [x] 6.10 寫整合測試：完整 chat → SSE 事件序列 → AgentStep DB 記錄驗證
 
 ## 7. 驗證與品質
 

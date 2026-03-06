@@ -5,6 +5,9 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
   datasource:
     url: jdbc:tc:postgresql:16:///agent_test
     username: test
@@ -13,13 +16,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
   ai:
     google:
       genai:
-        api-key: ${GOOGLE_GENAI_API_KEY:test-key}
+        api-key: test-key
         chat:
           options:
             model: gemini-2.5-flash
