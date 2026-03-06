@@ -25,6 +25,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,6 +79,22 @@ class OrderQueryServiceTest {
 
         assertThat(result.id()).isEqualTo(orderId.toString());
         verify(orderRepository).findById(orderId);
+    }
+
+    @Test
+    @DisplayName("DB fallback 後，結果回填 Redis（lazy population）")
+    void shouldRepopulateRedisAfterDbFallback() {
+        UUID orderId = UUID.randomUUID();
+        when(valueOps.get(RedisConfig.ORDER_KEY_PREFIX + orderId)).thenReturn(null);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(buildOrder(orderId)));
+
+        service.getOrder(orderId.toString());
+
+        verify(valueOps).set(
+                eq(RedisConfig.ORDER_KEY_PREFIX + orderId.toString()),
+                anyString(),
+                eq(RedisConfig.ORDER_TTL)
+        );
     }
 
     @Test

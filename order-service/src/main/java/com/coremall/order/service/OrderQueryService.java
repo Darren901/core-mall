@@ -37,10 +37,17 @@ public class OrderQueryService {
             return deserialize(json);
         }
 
-        // 2. DB fallback
-        return orderRepository.findById(UUID.fromString(orderId))
-                .map(this::toResponse)
+        // 2. DB fallback + lazy cache population
+        Order order = orderRepository.findById(UUID.fromString(orderId))
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
+        OrderResponse response = toResponse(order);
+        try {
+            String repopulated = objectMapper.writeValueAsString(response);
+            redisTemplate.opsForValue().set(RedisConfig.ORDER_KEY_PREFIX + orderId, repopulated, RedisConfig.ORDER_TTL);
+        } catch (JsonProcessingException e) {
+            // 回填失敗不影響查詢結果，下次再 fallback
+        }
+        return response;
     }
 
     private OrderResponse toResponse(Order order) {
