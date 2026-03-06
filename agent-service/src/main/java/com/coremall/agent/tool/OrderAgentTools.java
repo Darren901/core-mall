@@ -7,6 +7,7 @@ import com.coremall.agent.service.AsyncStepService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -43,8 +44,11 @@ public class OrderAgentTools {
         this.publisher = publisher;
     }
 
-    @Tool(description = "建立新訂單。需要 userId（用戶 ID）、productName（商品名稱）、quantity（數量，正整數）。回傳訂單 ID。")
-    public String createOrder(String userId, String productName, int quantity) {
+    @Tool(description = "建立新訂單，回傳訂單 ID。")
+    public String createOrder(
+            @ToolParam(description = "用戶 ID") String userId,
+            @ToolParam(description = "商品名稱") String productName,
+            @ToolParam(description = "購買數量，必須為正整數") int quantity) {
         String tool = "createOrder";
         String stepKey = stepKey(tool, userId, productName, String.valueOf(quantity));
 
@@ -78,8 +82,11 @@ public class OrderAgentTools {
         }
     }
 
-    @Tool(description = "更新現有訂單的商品名稱或數量。需要 orderId（訂單 ID）；productName 和 quantity 至少提供一個。")
-    public String updateOrder(String orderId, String productName, int quantity) {
+    @Tool(description = "更新現有訂單的商品名稱或數量（至少提供其中一個）。")
+    public String updateOrder(
+            @ToolParam(description = "訂單 ID") String orderId,
+            @ToolParam(description = "新的商品名稱") String productName,
+            @ToolParam(description = "新的購買數量，必須為正整數") int quantity) {
         String tool = "updateOrder";
         String stepKey = stepKey(tool, orderId, productName, String.valueOf(quantity));
 
@@ -111,8 +118,9 @@ public class OrderAgentTools {
         }
     }
 
-    @Tool(description = "取消訂單。需要 orderId（訂單 ID）。")
-    public String cancelOrder(String orderId) {
+    @Tool(description = "取消訂單。")
+    public String cancelOrder(
+            @ToolParam(description = "要取消的訂單 ID") String orderId) {
         String tool = "cancelOrder";
         String stepKey = stepKey(tool, orderId);
 
@@ -144,8 +152,9 @@ public class OrderAgentTools {
         }
     }
 
-    @Tool(description = "查詢訂單狀態。需要 orderId（訂單 ID）。回傳訂單詳細資訊。")
-    public String getOrderStatus(String orderId) {
+    @Tool(description = "查詢訂單狀態，回傳訂單詳細資訊（商品、數量、狀態）。")
+    public String getOrderStatus(
+            @ToolParam(description = "要查詢的訂單 ID") String orderId) {
         String tool = "getOrderStatus";
         String stepKey = stepKey(tool, orderId);
 
