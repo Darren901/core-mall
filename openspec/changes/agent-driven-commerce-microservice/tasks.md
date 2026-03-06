@@ -57,7 +57,7 @@
 
 ## 7. 驗證與品質
 
-- [ ] 7.1 所有服務 `mvn clean verify`，line / branch coverage ≥ 80%
+- [x] 7.1 所有服務 `mvn clean verify`，line / branch coverage ≥ 80%
 - [ ] 7.2 啟動全部服務（docker-compose + 5 個 Spring Boot），執行端對端手動測試
 - [ ] 7.3 測試多步驟訊息（e.g. 「訂5個蘋果，改成3個，查狀態」）→ 驗證 3 個 AgentStep 記錄與 SSE 事件
 - [ ] 7.4 測試冪等性：相同 idempotency key 重複送出，確認訂單不重複建立
