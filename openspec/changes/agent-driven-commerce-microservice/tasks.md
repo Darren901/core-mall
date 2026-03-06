@@ -37,10 +37,10 @@
 
 ## 5. order-service：Outbox + RabbitMQ
 
-- [ ] 5.1 實作 `RabbitMQConfig`：exchange / queue / binding 定義
-- [ ] 5.2 實作 Outbox Relay Publisher：讀 unpublished events → publish → 標記 published
-- [ ] 5.3 實作消費端冪等性：`processed_events` table，重複訊息只處理一次
-- [ ] 5.4 寫整合測試（Testcontainers RabbitMQ）：outbox event 成功 publish 且不重複消費
+- [x] 5.1 實作 `RabbitMQConfig`：exchange / queue / binding 定義
+- [x] 5.2 實作 Outbox Relay Publisher：讀 unpublished events → publish → 標記 published
+- [x] 5.3 實作消費端冪等性：`processed_events` table，重複訊息只處理一次
+- [x] 5.4 寫整合測試（Testcontainers RabbitMQ）：outbox event 成功 publish 且不重複消費
 
 ## 6. agent-service：ChatClient + Function Calling
 

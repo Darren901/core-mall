@@ -8,9 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -45,6 +47,10 @@ class OrderIntegrationTest {
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     }
+
+    /** 停用 RabbitTemplate（application-test.yml 已排除 RabbitAutoConfiguration） */
+    @MockBean
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private MockMvc mockMvc;
