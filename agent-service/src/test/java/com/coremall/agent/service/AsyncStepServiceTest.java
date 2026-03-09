@@ -79,4 +79,17 @@ class AsyncStepServiceTest {
 
         verify(stepRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("saveCompleted：toolName 符合但 status 非 STARTED → 跳過，不呼叫 save()")
+    void shouldSkipWhenStepStatusIsNotStarted() {
+        UUID runId = UUID.randomUUID();
+        AgentStep step = AgentStep.start(runId, "createOrder");
+        step.succeed("已完成");
+        when(stepRepository.findByRunIdOrderByCreatedAtAsc(runId)).thenReturn(List.of(step));
+
+        asyncStepService.saveCompleted(runId.toString(), "createOrder", "SUCCEEDED", "ok");
+
+        verify(stepRepository, never()).save(any());
+    }
 }

@@ -2,6 +2,8 @@ server:
   port: 8083
 
 spring:
+  config:
+    import: optional:classpath:application-sensitive.yml
   cloud:
     compatibility-verifier:
       enabled: false
@@ -24,6 +26,15 @@ spring:
           options:
             model: gemini-2.5-flash
             temperature: 0.2
+    chat:
+      memory:
+        repository:
+          redis:
+            index-name: coremall-chat-memory
+            key-prefix: "chat-memory:"
+
+order-service:
+  base-url: http://localhost:8082
 
 eureka:
   client:
