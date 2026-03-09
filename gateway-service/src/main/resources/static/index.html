@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CORE MALL — Agent Commerce</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── RESET ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { cursor: pointer; font-family: inherit; }
+    textarea { font-family: inherit; }
+
+    /* ─── DESIGN TOKENS ──────────────────────────────────── */
+    :root {
+      --bg-void:     #040710;
+      --bg-deep:     #080d1a;
+      --bg-surface:  #0d1526;
+      --bg-card:     #111d30;
+      --bg-elevated: #192540;
+
+      --border-faint:  rgba(255,255,255,0.04);
+      --border-subtle: rgba(255,255,255,0.07);
+      --border-dim:    rgba(255,255,255,0.11);
+      --border-bright: rgba(255,255,255,0.18);
+
+      --gold:       #f5b731;
+      --gold-light: #ffd166;
+      --gold-dim:   rgba(245,183,49,0.10);
+      --gold-glow:  rgba(245,183,49,0.22);
+
+      --cyan:     #38bdf8;
+      --cyan-dim: rgba(56,189,248,0.10);
+
+      --green:     #34d399;
+      --green-dim: rgba(52,211,153,0.10);
+
+      --red:     #fb7185;
+      --red-dim: rgba(251,113,133,0.10);
+
+      --text-bright:    #eef2ff;
+      --text-primary:   #c1ccde;
+      --text-secondary: #6b7e96;
+      --text-muted:     #3a4860;
+
+      --font-brand: 'Syne', sans-serif;
+      --font-mono:  'IBM Plex Mono', monospace;
+      --font-ui:    'DM Sans', sans-serif;
+
+      --radius: 2px;
+    }
+
+    /* ─── BASE ───────────────────────────────────────────── */
+    html, body {
+      height: 100%;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      overflow: hidden;
+    }
+
+    /* Scanline overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.12) 3px,
+        rgba(0,0,0,0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9000;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       LOGIN SCREEN
+    ═══════════════════════════════════════════════════════ */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse 60% 50% at 15% 60%, rgba(245,183,49,0.05) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 85% 20%, rgba(56,189,248,0.06) 0%, transparent 60%),
+        var(--bg-void);
+    }
+
+    /* Grid pattern on login bg */
+    #login-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border-faint) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-faint) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    .login-card {
+      position: relative;
+      width: 420px;
+      padding: 48px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      animation: card-rise 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    /* Top gold line */
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold) 40%, var(--gold-light) 60%, transparent 100%);
+    }
+
+    /* Corner decorations */
+    .login-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 24px; height: 24px;
+      border-bottom: 1px solid var(--gold);
+      border-right: 1px solid var(--gold);
+      opacity: 0.4;
+    }
+
+    @keyframes card-rise {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-brand {
+      margin-bottom: 36px;
+    }
+
+    .login-logo {
+      font-family: var(--font-brand);
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      color: var(--text-bright);
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .login-logo em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .login-tagline {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .login-tagline span {
+      color: var(--gold);
+      opacity: 0.7;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      padding: 8px 20px 12px;
+      background: none;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--gold);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0; right: 0;
+      height: 1px;
+      background: var(--gold);
+    }
+
+    /* Form elements */
+    .field {
+      margin-bottom: 20px;
+    }
+
+    .field-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+      border-radius: var(--radius);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .field-input::placeholder { color: var(--text-muted); }
+
+    .field-input:focus {
+      border-color: rgba(245,183,49,0.4);
+      box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+
+    /* Primary button */
+    .btn-gold {
+      width: 100%;
+      padding: 14px;
+      margin-top: 8px;
+      background: var(--gold);
+      border: none;
+      color: #06080f;
+      font-family: var(--font-brand);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      border-radius: var(--radius);
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-gold:hover:not(:disabled) {
+      background: var(--gold-light);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--gold-glow);
+    }
+
+    .btn-gold:active:not(:disabled) { transform: translateY(0); }
+
+    .btn-gold:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .form-error {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: var(--red-dim);
+      border: 1px solid rgba(251,113,133,0.2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--red);
+      display: none;
+      border-radius: var(--radius);
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       CHAT SCREEN
+    ═══════════════════════════════════════════════════════ */
+    #chat-screen {
+      display: none;
+      height: 100vh;
+      flex-direction: column;
+      background:
+        radial-gradient(ellipse 40% 30% at 5% 0%, rgba(245,183,49,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse 35% 25% at 95% 100%, rgba(56,189,248,0.04) 0%, transparent 60%),
+        var(--bg-void);
+    }
+
+    /* ── HEADER ──────────────────────────────────────────── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      height: 52px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border-faint);
+      background: rgba(4,7,16,0.92);
+      backdrop-filter: blur(16px);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 100;
+    }
+
+    .top-bar-logo {
+      font-family: var(--font-brand);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-bright);
+    }
+
+    .top-bar-logo em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .top-bar-sep {
+      margin: 0 16px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 14px;
+    }
+
+    .top-bar-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .top-bar-spacer { flex: 1; }
+
+    .online-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .online-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse-glow 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+      50%       { opacity: 0.6; box-shadow: 0 0 3px var(--green); }
+    }
+
+    .user-chip {
+      margin-left: 20px;
+      padding: 0 14px;
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .user-chip strong {
+      color: var(--gold);
+      font-weight: 400;
+    }
+
+    .logout-btn {
+      padding: 4px 10px;
+      background: none;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: var(--radius);
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .logout-btn:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ── BODY LAYOUT ──────────────────────────────────────── */
+    .chat-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ──────────────────────────────────────────── */
+    .sidebar {
+      width: 248px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border-faint);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: rgba(8,13,26,0.6);
+    }
+
+    .sidebar-inner {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .sidebar-inner::-webkit-scrollbar { width: 3px; }
+    .sidebar-inner::-webkit-scrollbar-thumb { background: var(--border-dim); }
+
+    .sidebar-section-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .cmd-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 12px;
+      margin-bottom: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-faint);
+      border-left: 2px solid transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.55;
+      border-radius: var(--radius);
+      transition: border-left-color 0.2s, background 0.2s, color 0.2s;
+    }
+
+    .cmd-btn:hover {
+      border-left-color: var(--gold);
+      background: var(--gold-dim);
+      color: var(--text-primary);
+    }
+
+    .tool-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid rgba(56,189,248,0.15);
+      border-radius: 1px;
+      margin-top: 4px;
+    }
+
+    .api-row {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 2;
+    }
+
+    .api-row .method { color: var(--cyan); }
+    .api-row .path   { color: var(--text-secondary); }
+
+    /* ── MAIN AREA ────────────────────────────────────────── */
+    .chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Subtle grid on chat bg */
+    .chat-main::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border-faint) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-faint) 1px, transparent 1px);
+      background-size: 64px 64px;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 36px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      position: relative;
+      z-index: 1;
+      scroll-behavior: smooth;
+    }
+
+    .messages-area::-webkit-scrollbar { width: 3px; }
+    .messages-area::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 16px;
+      user-select: none;
+    }
+
+    .empty-monogram {
+      font-family: var(--font-brand);
+      font-size: 88px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(245,183,49,0.12);
+    }
+
+    .empty-hint {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── MESSAGES ─────────────────────────────────────────── */
+    .msg { animation: msg-in 0.28s ease both; }
+
+    @keyframes msg-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* USER */
+    .msg-user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .msg-user-bubble {
+      max-width: 580px;
+      padding: 14px 20px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-right: 2px solid var(--gold);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-bright);
+      line-height: 1.65;
+      border-radius: var(--radius);
+    }
+
+    /* AGENT */
+    .msg-agent {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .agent-icon {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      background: var(--gold-dim);
+      border: 1px solid rgba(245,183,49,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-brand);
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+      border-radius: var(--radius);
+      margin-top: 2px;
+    }
+
+    .agent-body {
+      flex: 1;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── PROCESSING BOX ───────────────────────────────────── */
+    .proc-box {
+      border: 1px solid var(--border-subtle);
+      border-left: 2px solid var(--cyan);
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-left-color 0.4s;
+    }
+
+    .proc-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-faint);
+    }
+
+    .proc-spinner {
+      width: 8px;
+      height: 8px;
+      border: 1.5px solid var(--cyan);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .proc-spinner.done {
+      animation: none;
+      border: none;
+      background: var(--green);
+      border-radius: 50%;
+    }
+
+    .proc-spinner.error {
+      animation: none;
+      border: none;
+      background: var(--red);
+      border-radius: 50%;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .proc-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      transition: color 0.3s;
+    }
+
+    .proc-steps {
+      padding: 8px 16px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── STEP ITEM ────────────────────────────────────────── */
+    .step {
+      display: flex;
+      gap: 12px;
+      animation: step-slide 0.22s ease both;
+      border-left: 2px solid transparent;
+      padding-left: 8px;
+      margin-left: -10px;
+      transition: border-left-color 0.3s;
+    }
+
+    .step.active {
+      border-left-color: var(--cyan);
+    }
+
+    @keyframes step-slide {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .step-track {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 14px;
+      flex-shrink: 0;
+      padding-top: 14px;
+    }
+
+    .step-node {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .step-node.started {
+      background: var(--cyan);
+      animation: node-ping 1.4s ease-in-out infinite;
+    }
+
+    @keyframes node-ping {
+      0%   { box-shadow: 0 0 0 0 rgba(56,189,248,0.5); }
+      70%  { box-shadow: 0 0 0 7px rgba(56,189,248,0); }
+      100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); }
+    }
+
+    .step-node.succeeded { background: var(--green); }
+    .step-node.failed    { background: var(--red); }
+
+    .step-rail {
+      flex: 1;
+      width: 1px;
+      min-height: 10px;
+      background: var(--border-subtle);
+      margin-top: 3px;
+    }
+
+    .step-content {
+      flex: 1;
+      padding: 10px 0 12px;
+    }
+
+    .step-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .step-index {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+    }
+
+    .step-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .status-chip {
+      padding: 1px 7px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border-radius: 1px;
+    }
+
+    .chip-started   { background: var(--cyan-dim);  color: var(--cyan);  border: 1px solid rgba(56,189,248,0.2); }
+    .chip-succeeded { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .chip-failed    { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(251,113,133,0.2); }
+
+    .step-payload {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-style: italic;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.6;
+    }
+
+    /* ── FINAL REPLY ──────────────────────────────────────── */
+    .reply-block {
+      padding: 18px 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius);
+      animation: msg-in 0.3s ease both;
+    }
+
+    .reply-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+      opacity: 0.8;
+    }
+
+    .reply-text {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      color: var(--text-bright);
+      line-height: 1.75;
+    }
+
+    /* ── ERROR BLOCK ──────────────────────────────────────── */
+    .error-block {
+      padding: 12px 16px;
+      background: var(--red-dim);
+      border: 1px solid rgba(251,113,133,0.2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--red);
+      border-radius: var(--radius);
+    }
+
+    /* ── INPUT AREA ───────────────────────────────────────── */
+    .input-area {
+      padding: 16px 48px 28px;
+      flex-shrink: 0;
+      background: linear-gradient(to top, var(--bg-void) 60%, transparent);
+      position: relative;
+      z-index: 1;
+    }
+
+    .input-shell {
+      display: flex;
+      border: 1px solid var(--border-dim);
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-shell:focus-within {
+      border-color: rgba(245,183,49,0.35);
+      box-shadow: 0 0 0 3px rgba(245,183,49,0.07);
+    }
+
+    .chat-textarea {
+      flex: 1;
+      padding: 15px 18px;
+      background: none;
+      border: none;
+      color: var(--text-bright);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      outline: none;
+      resize: none;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .chat-textarea::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      padding: 0 22px;
+      background: var(--gold);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .send-btn:hover:not(:disabled) { background: var(--gold-light); }
+    .send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .send-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: #05080e;
+    }
+
+    .input-hint {
+      margin-top: 7px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* ── CURSOR / TYPEWRITER ──────────────────────────────── */
+    .cursor-blink {
+      display: inline-block;
+      width: 1.5px;
+      height: 15px;
+      background: var(--gold);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: cur-blink 0.85s step-end infinite;
+    }
+
+    @keyframes cur-blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-logo">CORE<em>MALL</em></div>
+      <div class="login-tagline"><span>//</span> Agent Commerce Terminal</div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-login"    onclick="switchTab('login')">LOGIN</button>
+      <button class="tab-btn"        id="tab-register" onclick="switchTab('register')">REGISTER</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="pane-login">
+      <div class="field">
+        <label class="field-label" for="l-email">Email</label>
+        <input id="l-email" class="field-input" type="email" placeholder="user@example.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="l-pass">Password</label>
+        <input id="l-pass" class="field-input" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn-gold" id="btn-login" onclick="doLogin()">ENTER</button>
+      <div class="form-error" id="err-login"></div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="pane-register" style="display:none">
+      <div class="field">
+        <label class="field-label" for="r-email">Email</label>
+        <input id="r-email" class="field-input" type="email" placeholder="new@example.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="r-pass">Password</label>
+        <input id="r-pass" class="field-input" type="password" placeholder="至少 8 個字元" autocomplete="new-password" />
+      </div>
+      <button class="btn-gold" id="btn-register" onclick="doRegister()">CREATE ACCOUNT</button>
+      <div class="form-error" id="err-register"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CHAT SCREEN
+══════════════════════════════════════════════════════════ -->
+<div id="chat-screen">
+
+  <!-- Top bar -->
+  <header class="top-bar">
+    <div class="top-bar-logo">CORE<em>MALL</em></div>
+    <div class="top-bar-sep">/</div>
+    <div class="top-bar-sub">Agent Commerce</div>
+    <div class="top-bar-spacer"></div>
+    <div class="online-badge">
+      <div class="online-dot"></div>
+      AGENT ONLINE
+    </div>
+    <div class="user-chip">
+      <strong id="hdr-uid">—</strong>
+      <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </header>
+
+  <div class="chat-body">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+
+        <div>
+          <div class="sidebar-section-label">Quick Commands</div>
+          <button class="cmd-btn" onclick="fillInput('幫我建立一個訂單，商品名稱：MacBook Pro，數量 1，用戶 ID：user-001')">
+            建立訂單<br/>
+            <span class="tool-tag">createOrder</span>
+          </button>
+          <button class="cmd-btn" onclick="fillInput('查詢訂單 [訂單ID] 的目前狀態')">
+            查詢訂單狀態<br/>
+            <span class="tool-tag">getOrderStatus</span>
+          </button>
+          <button class="cmd-btn" onclick="fillInput('幫我更新訂單 [訂單ID]，數量改為 3')">
+            更新訂單數量<br/>
+            <span class="tool-tag">updateOrder</span>
+          </button>
+          <button class="cmd-btn" onclick="fillInput('取消訂單 [訂單ID]')">
+            取消訂單<br/>
+            <span class="tool-tag">cancelOrder</span>
+          </button>
+          <button class="cmd-btn" onclick="fillInput('幫我建立訂單後，馬上查詢一下狀態（用戶 user-001，AirPods Pro，數量 2）')">
+            建立並查詢（多步驟）<br/>
+            <span class="tool-tag">createOrder</span>&nbsp;<span class="tool-tag">getOrderStatus</span>
+          </button>
+        </div>
+
+        <div>
+          <div class="sidebar-section-label">API Routes</div>
+          <div class="api-row">
+            <span class="method">POST</span>&nbsp;
+            <span class="path">/api/v1/agent/chat</span>
+          </div>
+          <div class="api-row">
+            <span class="method">GET</span>&nbsp;
+            <span class="path">/sessions/{id}/stream</span>
+          </div>
+          <div class="api-row" style="margin-top:4px; color:var(--border-bright)">SSE → JWT Auth</div>
+        </div>
+
+        <div>
+          <div class="sidebar-section-label">Available Tools</div>
+          <div class="api-row">
+            <span class="method">fn</span>&nbsp;createOrder
+          </div>
+          <div class="api-row">
+            <span class="method">fn</span>&nbsp;updateOrder
+          </div>
+          <div class="api-row">
+            <span class="method">fn</span>&nbsp;cancelOrder
+          </div>
+          <div class="api-row">
+            <span class="method">fn</span>&nbsp;getOrderStatus
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="chat-main">
+      <div class="messages-area" id="messages">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-monogram">CM</div>
+          <div class="empty-hint">// 輸入自然語言指令，讓 Agent 執行訂單操作</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-shell">
+          <textarea
+            class="chat-textarea"
+            id="chat-input"
+            placeholder="輸入指令，例如：幫我建立一個訂單…"
+            rows="1"
+            onkeydown="onInputKey(event)"
+            oninput="autoGrow(this)"
+          ></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">ENTER to send &nbsp;·&nbsp; SHIFT+ENTER for new line</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────
+let authToken  = localStorage.getItem('cm_token') || null;
+let authUserId = localStorage.getItem('cm_uid')   || null;
+let sending    = false;
+
+// stepMaps[agentMsgId] = { toolName -> stepElementId }
+const stepMaps = {};
+// stepCounters[agentMsgId] = number
+const stepCounters = {};
+
+// ── Boot ───────────────────────────────────────────────────
+if (authToken) {
+  renderChat();
+} else {
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// Enter on login form
+document.getElementById('l-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('l-pass').focus();
+});
+document.getElementById('l-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('r-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('r-pass').focus();
+});
+document.getElementById('r-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
+
+// ── Tab switch ────────────────────────────────────────────
+function switchTab(name) {
+  document.getElementById('tab-login').classList.toggle('active', name === 'login');
+  document.getElementById('tab-register').classList.toggle('active', name === 'register');
+  document.getElementById('pane-login').style.display    = name === 'login'    ? 'block' : 'none';
+  document.getElementById('pane-register').style.display = name === 'register' ? 'block' : 'none';
+}
+
+// ── Login ─────────────────────────────────────────────────
+async function doLogin() {
+  const email = v('l-email'), pass = v('l-pass');
+  const errEl = $('err-login'), btn = $('btn-login');
+
+  if (!email || !pass) { showErr(errEl, '請輸入 Email 與密碼'); return; }
+  if (pass.length < 8) { showErr(errEl, '密碼至少需要 8 個字元'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'AUTHENTICATING…';
+  errEl.style.display = 'none';
+
+  try {
+    const res  = await post('/api/v1/auth/login', { email, password: pass });
+    const body = await res.json();
+    if (body.success) {
+      authToken  = body.data.token;
+      authUserId = body.data.userId;
+      localStorage.setItem('cm_token', authToken);
+      localStorage.setItem('cm_uid',   authUserId);
+      renderChat();
+    } else {
+      showErr(errEl, body.error?.message || '登入失敗');
+    }
+  } catch { showErr(errEl, '無法連線至伺服器'); }
+  finally  { btn.disabled = false; btn.textContent = 'ENTER'; }
+}
+
+// ── Register ──────────────────────────────────────────────
+async function doRegister() {
+  const email = v('r-email'), pass = v('r-pass');
+  const errEl = $('err-register'), btn = $('btn-register');
+
+  if (!email || !pass) { showErr(errEl, '請填寫所有欄位'); return; }
+  if (pass.length < 8) { showErr(errEl, '密碼至少需要 8 個字元'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'CREATING…';
+  errEl.style.display = 'none';
+
+  try {
+    const res  = await post('/api/v1/auth/register', { email, password: pass });
+    const body = await res.json();
+    if (body.success) {
+      // auto-fill login and switch
+      document.getElementById('l-email').value = email;
+      document.getElementById('l-pass').value  = pass;
+      switchTab('login');
+      await doLogin();
+    } else {
+      showErr(errEl, body.error?.message || '註冊失敗');
+    }
+  } catch { showErr(errEl, '無法連線至伺服器'); }
+  finally  { btn.disabled = false; btn.textContent = 'CREATE ACCOUNT'; }
+}
+
+// ── Logout ────────────────────────────────────────────────
+function doLogout() {
+  authToken = authUserId = null;
+  localStorage.removeItem('cm_token');
+  localStorage.removeItem('cm_uid');
+  clearMessages();
+  document.getElementById('chat-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── Render chat layout ────────────────────────────────────
+function renderChat() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('chat-screen').style.display  = 'flex';
+  const short = authUserId ? authUserId.substring(0, 12) + '…' : 'AUTHENTICATED';
+  document.getElementById('hdr-uid').textContent = short;
+  document.getElementById('chat-input').focus();
+}
+
+// ── Send message ──────────────────────────────────────────
+async function sendMessage() {
+  if (sending) return;
+
+  const inputEl = $('chat-input');
+  const msg = inputEl.value.trim();
+  if (!msg) return;
+
+  sending = true;
+  $('send-btn').disabled = true;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  removeEmptyState();
+
+  appendUserMsg(msg);
+  const agentId = 'agent-' + Date.now();
+  appendAgentShell(agentId);
+
+  try {
+    const res  = await authPost('/api/v1/agent/chat', { message: msg });
+
+    if (res.status === 401) { doLogout(); return; }
+
+    const body = await res.json();
+    if (!body.success) {
+      renderError(agentId, body.error?.message || 'Agent 啟動失敗');
+      return;
+    }
+
+    await connectSSE(body.data.runId, agentId);
+
+  } catch (e) {
+    renderError(agentId, '連線失敗：' + e.message);
+  } finally {
+    sending = false;
+    $('send-btn').disabled = false;
+    $('chat-input').focus();
+  }
+}
+
+// ── SSE connection ────────────────────────────────────────
+async function connectSSE(runId, agentId) {
+  let response;
+  try {
+    response = await fetch(`/api/v1/agent/sessions/${runId}/stream`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+  } catch (e) {
+    renderError(agentId, 'SSE 連線失敗：' + e.message);
+    return;
+  }
+
+  if (!response.ok) {
+    renderError(agentId, `SSE 連線錯誤 (${response.status})`);
+    return;
+  }
+
+  const reader  = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let buf    = '';
+  let etype  = null;
+  let eLines = []; // collect multiple data: lines per SSE event
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          etype = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          eLines.push(line.slice(5)); // preserve leading space as per SSE spec
+        } else if (line === '') {
+          // blank line = event boundary
+          if (etype && eLines.length > 0) {
+            const rawData = eLines.join('\n');
+            handleEvent(agentId, etype, rawData.trim());
+          }
+          etype  = null;
+          eLines = [];
+        }
+      }
+    }
+  } catch (e) {
+    renderError(agentId, 'SSE 串流中斷：' + e.message);
+  }
+}
+
+// ── Event dispatch ────────────────────────────────────────
+function handleEvent(agentId, type, rawData) {
+  let data;
+  try { data = JSON.parse(rawData); } catch { return; }
+
+  switch (type) {
+    case 'step-started':
+      addStep(agentId, data.toolName);
+      break;
+    case 'step-succeeded':
+      completeStep(agentId, data.toolName, 'succeeded', data.payload);
+      break;
+    case 'step-failed':
+      completeStep(agentId, data.toolName, 'failed', data.payload);
+      break;
+    case 'run-completed':
+      finishRun(agentId, data.reply);
+      break;
+    case 'run-failed':
+      markRunFailed(agentId, data.error || '執行失敗');
+      break;
+  }
+}
+
+// ── DOM builders ──────────────────────────────────────────
+function appendUserMsg(text) {
+  const el = div('msg msg-user',
+    `<div class="msg-user-bubble">${esc(text)}</div>`
+  );
+  msgs().appendChild(el);
+  scrollDown();
+}
+
+function appendAgentShell(agentId) {
+  stepMaps[agentId]     = {};
+  stepCounters[agentId] = 0;
+
+  const el = div('msg msg-agent', `
+    <div class="agent-icon">AI</div>
+    <div class="agent-body" id="${agentId}-body">
+      <div class="proc-box" id="${agentId}-proc">
+        <div class="proc-header">
+          <div class="proc-spinner" id="${agentId}-spin"></div>
+          <div class="proc-title"  id="${agentId}-title">AGENT PROCESSING</div>
+        </div>
+        <div class="proc-steps" id="${agentId}-steps"></div>
+      </div>
+    </div>
+  `);
+  el.id = agentId;
+  msgs().appendChild(el);
+  scrollDown();
+}
+
+function addStep(agentId, toolName) {
+  const idx    = ++stepCounters[agentId];
+  const stepId = `${agentId}-s${idx}`;
+  stepMaps[agentId][toolName] = stepId;
+
+  // Remove active class from previous step
+  const prev = document.querySelector(`#${agentId}-steps .step.active`);
+  if (prev) prev.classList.remove('active');
+
+  // Update proc-header to show current step
+  const title = $(`${agentId}-title`);
+  if (title) title.textContent = `STEP ${idx}: ${toolName}`;
+
+  const el = div('step active', `
+    <div class="step-track">
+      <div class="step-node started" id="${stepId}-node"></div>
+      <div class="step-rail"></div>
+    </div>
+    <div class="step-content">
+      <div class="step-head">
+        <span class="step-index">[${String(idx).padStart(2,'0')}]</span>
+        <span class="step-name">${esc(toolName)}</span>
+        <span class="status-chip chip-started" id="${stepId}-chip">RUNNING</span>
+      </div>
+      <div class="step-payload" id="${stepId}-payload"></div>
+    </div>
+  `);
+  el.id = stepId;
+  $(`${agentId}-steps`).appendChild(el);
+  scrollDown();
+}
+
+function completeStep(agentId, toolName, status, payload) {
+  const stepId = stepMaps[agentId]?.[toolName];
+  if (!stepId) return;
+
+  const stepEl = $(stepId);
+  const node   = $(`${stepId}-node`);
+  const chip   = $(`${stepId}-chip`);
+  const pay    = $(`${stepId}-payload`);
+
+  // Deactivate step
+  if (stepEl) stepEl.classList.remove('active');
+
+  if (node) {
+    node.className = `step-node ${status}`;
+    node.style.animation = 'none';
+  }
+  if (chip) {
+    chip.className   = `status-chip chip-${status}`;
+    chip.textContent = status === 'succeeded' ? 'DONE' : 'FAILED';
+  }
+  if (pay && payload) {
+    pay.textContent = payload;
+  }
+
+  // Update proc-header to show step count
+  const total = stepCounters[agentId];
+  const title = $(`${agentId}-title`);
+  if (title) title.textContent = `PROCESSING (${total} step${total > 1 ? 's' : ''}…)`;
+
+  scrollDown();
+}
+
+function finishRun(agentId, reply) {
+  // Update proc box header → completed state
+  const spin  = $(`${agentId}-spin`);
+  const title = $(`${agentId}-title`);
+  const proc  = $(`${agentId}-proc`);
+
+  if (spin)  { spin.className = 'proc-spinner done'; }
+  const total = stepCounters[agentId] || 0;
+  if (title) {
+    title.textContent = `COMPLETED (${total} step${total !== 1 ? 's' : ''})`;
+    title.style.color = 'var(--green)';
+  }
+  if (proc)  { proc.style.borderLeftColor = 'var(--green)'; }
+
+  // Append reply block
+  const body = $(`${agentId}-body`);
+  if (body) {
+    const replyEl = div('reply-block', `
+      <div class="reply-label">// Agent Response</div>
+      <div class="reply-text" id="${agentId}-reply"></div>
+    `);
+    body.appendChild(replyEl);
+    typewriter(`${agentId}-reply`, reply);
+  }
+  scrollDown();
+}
+
+function markRunFailed(agentId, errMsg) {
+  const spin  = $(`${agentId}-spin`);
+  const title = $(`${agentId}-title`);
+  const proc  = $(`${agentId}-proc`);
+
+  if (spin)  { spin.className = 'proc-spinner error'; }
+  if (title) { title.textContent = 'FAILED'; title.style.color = 'var(--red)'; }
+  if (proc)  { proc.style.borderLeftColor = 'var(--red)'; }
+
+  renderError(agentId, errMsg);
+}
+
+function renderError(agentId, msg) {
+  const body = $(`${agentId}-body`);
+  if (body) {
+    body.appendChild(div('error-block', `// ERROR: ${esc(msg)}`));
+  }
+  scrollDown();
+}
+
+// ── Typewriter ────────────────────────────────────────────
+function typewriter(elId, text) {
+  const el = $(elId);
+  if (!el) return;
+
+  el.innerHTML = '<span class="cursor-blink"></span>';
+  let i = 0;
+
+  (function tick() {
+    if (i < text.length) {
+      el.insertBefore(document.createTextNode(text[i++]), el.lastChild);
+      setTimeout(tick, 16);
+    } else {
+      el.lastChild?.remove(); // remove cursor
+    }
+  })();
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function fillInput(text) {
+  const el = $('chat-input');
+  el.value = text;
+  el.focus();
+  autoGrow(el);
+}
+
+function onInputKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function removeEmptyState() {
+  const el = document.getElementById('empty-state');
+  if (el) el.remove();
+}
+
+function clearMessages() {
+  const m = document.getElementById('messages');
+  if (m) m.innerHTML = `
+    <div class="empty-state" id="empty-state">
+      <div class="empty-monogram">CM</div>
+      <div class="empty-hint">// 輸入自然語言指令，讓 Agent 執行訂單操作</div>
+    </div>`;
+}
+
+function scrollDown() {
+  const el = msgs();
+  el.scrollTop = el.scrollHeight;
+}
+
+function msgs()   { return document.getElementById('messages'); }
+function $(id)    { return document.getElementById(id); }
+function v(id)    { return $(id).value.trim(); }
+function esc(s)   {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+
+function div(cls, html) {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.innerHTML = html;
+  return el;
+}
+
+function post(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+}
+
+function authPost(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authToken}`
+    },
+    body: JSON.stringify(body)
+  });
+}
+
+function showErr(el, msg) {
+  el.textContent = '// ' + msg;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
