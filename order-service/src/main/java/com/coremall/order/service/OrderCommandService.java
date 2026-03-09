@@ -33,17 +33,22 @@ public class OrderCommandService {
      * 建立訂單。流程：idem 檢查 → 搶鎖 → 寫 Redis → 釋放鎖
      */
     public OrderResponse createOrder(CreateOrderRequest request, String idempotencyKey) {
-        // 1. 冪等鍵檢查（4.8）
+        log.info("[Order] createOrder start: userId={} product={} qty={} idemKey={}",
+                request.userId(), request.productName(), request.quantity(), idempotencyKey);
+
+        // 1. 冪等鍵檢查
         OrderResponse cached = getByIdemKey(idempotencyKey);
         if (cached != null) {
+            log.info("[Order] createOrder idem-hit: idemKey={} → orderId={}", idempotencyKey, cached.id());
             return cached;
         }
 
-        // 2. 分散式鎖（4.7）
+        // 2. 分散式鎖
         String lockKey = RedisConfig.LOCK_KEY_PREFIX + "create:" + request.userId();
         acquireLockOrThrow(lockKey);
+        log.debug("[Order] createOrder lock acquired: key={}", lockKey);
         try {
-            // 3. 建立訂單並寫入 Redis（4.4）
+            // 3. 建立訂單並寫入 Redis
             OrderResponse order = new OrderResponse(
                     UUID.randomUUID().toString(),
                     request.userId(),
@@ -53,9 +58,11 @@ public class OrderCommandService {
                     LocalDateTime.now().toString()
             );
             writeToRedis(order, idempotencyKey);
+            log.info("[Order] createOrder done: orderId={} status=CREATED written to Redis", order.id());
             return order;
         } finally {
             redisTemplate.delete(lockKey);
+            log.debug("[Order] createOrder lock released: key={}", lockKey);
         }
     }
 
@@ -63,13 +70,17 @@ public class OrderCommandService {
      * 更新訂單。流程：idem 檢查 → 搶鎖 → 讀 Redis → 更新 → 寫回
      */
     public OrderResponse updateOrder(String orderId, UpdateOrderRequest request, String idempotencyKey) {
+        log.info("[Order] updateOrder start: orderId={} idemKey={}", orderId, idempotencyKey);
+
         OrderResponse cached = getByIdemKey(idempotencyKey);
         if (cached != null) {
+            log.info("[Order] updateOrder idem-hit: idemKey={} → orderId={}", idempotencyKey, cached.id());
             return cached;
         }
 
         String lockKey = RedisConfig.LOCK_KEY_PREFIX + orderId;
         acquireLockOrThrow(lockKey);
+        log.debug("[Order] updateOrder lock acquired: key={}", lockKey);
         try {
             OrderResponse existing = getFromRedisOrThrow(orderId);
             OrderResponse updated = new OrderResponse(
@@ -81,9 +92,11 @@ public class OrderCommandService {
                     existing.createdAt()
             );
             writeToRedis(updated, idempotencyKey);
+            log.info("[Order] updateOrder done: orderId={} status=UPDATED written to Redis", orderId);
             return updated;
         } finally {
             redisTemplate.delete(lockKey);
+            log.debug("[Order] updateOrder lock released: key={}", lockKey);
         }
     }
 
@@ -91,13 +104,17 @@ public class OrderCommandService {
      * 取消訂單。流程：idem 檢查 → 搶鎖 → 讀 Redis → 標記 CANCELLED → 寫回
      */
     public void cancelOrder(String orderId, String idempotencyKey) {
+        log.info("[Order] cancelOrder start: orderId={} idemKey={}", orderId, idempotencyKey);
+
         OrderResponse cached = getByIdemKey(idempotencyKey);
         if (cached != null) {
+            log.info("[Order] cancelOrder idem-hit: idemKey={}", idempotencyKey);
             return;
         }
 
         String lockKey = RedisConfig.LOCK_KEY_PREFIX + orderId;
         acquireLockOrThrow(lockKey);
+        log.debug("[Order] cancelOrder lock acquired: key={}", lockKey);
         try {
             OrderResponse existing = getFromRedisOrThrow(orderId);
             OrderResponse cancelled = new OrderResponse(
@@ -109,8 +126,10 @@ public class OrderCommandService {
                     existing.createdAt()
             );
             writeToRedis(cancelled, idempotencyKey);
+            log.info("[Order] cancelOrder done: orderId={} status=CANCELLED written to Redis", orderId);
         } finally {
             redisTemplate.delete(lockKey);
+            log.debug("[Order] cancelOrder lock released: key={}", lockKey);
         }
     }
 
@@ -133,6 +152,8 @@ public class OrderCommandService {
         redisTemplate.opsForValue().set(RedisConfig.ORDER_KEY_PREFIX + order.id(), json, RedisConfig.ORDER_TTL);
         redisTemplate.opsForValue().set(RedisConfig.IDEM_KEY_PREFIX + idempotencyKey, order.id(), RedisConfig.IDEM_TTL);
         redisTemplate.opsForSet().add(RedisConfig.PENDING_RELAY_KEY, order.id());
+        log.debug("[Order] Redis write: order:{}={} idem:{}→{} added to pending-relay",
+                order.id(), order.status(), idempotencyKey, order.id());
     }
 
     private void acquireLockOrThrow(String lockKey) {

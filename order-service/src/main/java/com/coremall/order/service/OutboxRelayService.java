@@ -48,6 +48,7 @@ public class OutboxRelayService {
         Set<String> pendingIds = redisTemplate.opsForSet().members(RedisConfig.PENDING_RELAY_KEY);
         if (pendingIds == null || pendingIds.isEmpty()) return;
 
+        log.info("[Relay] Scan: {} order(s) pending relay to DB", pendingIds.size());
         for (String orderId : pendingIds) {
             try {
                 relayOne(orderId);
@@ -63,9 +64,10 @@ public class OutboxRelayService {
      */
     @Transactional
     public void relayOne(String orderId) {
+        log.info("[Relay] Relaying orderId={} Redis → DB", orderId);
         String json = redisTemplate.opsForValue().get(RedisConfig.ORDER_KEY_PREFIX + orderId);
         if (json == null) {
-            // 已被 TTL 清除，直接移出 pending
+            log.warn("[Relay] orderId={} not found in Redis (TTL expired), removing from pending", orderId);
             redisTemplate.opsForSet().remove(RedisConfig.PENDING_RELAY_KEY, orderId);
             return;
         }
@@ -83,6 +85,7 @@ public class OutboxRelayService {
             order.setUpdatedAt(LocalDateTime.now());
 
             orderRepository.save(order);
+            log.debug("[Relay] orderId={} saved to DB", orderId);
 
             OutboxEvent event = OutboxEvent.of(
                     UUID.fromString(response.id()),
@@ -90,8 +93,10 @@ public class OutboxRelayService {
                     json
             );
             outboxEventRepository.save(event);
+            log.debug("[Relay] orderId={} outbox event saved: type=ORDER_{}", orderId, response.status());
 
             redisTemplate.opsForSet().remove(RedisConfig.PENDING_RELAY_KEY, orderId);
+            log.info("[Relay] orderId={} relay complete → DB + outbox_events", orderId);
 
         } catch (JsonProcessingException e) {
             log.error("[Relay] JSON parse error for orderId={}", orderId, e);
