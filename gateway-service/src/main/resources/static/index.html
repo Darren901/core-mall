@@ -1116,6 +1116,7 @@
 let authToken  = localStorage.getItem('cm_token') || null;
 let authUserId = localStorage.getItem('cm_uid')   || null;
 let sending    = false;
+let imeComposing = false;
 
 // stepMaps[agentMsgId] = { toolName -> stepElementId }
 const stepMaps = {};
@@ -1223,7 +1224,12 @@ function renderChat() {
   document.getElementById('chat-screen').style.display  = 'flex';
   const short = authUserId ? authUserId.substring(0, 12) + '…' : 'AUTHENTICATED';
   document.getElementById('hdr-uid').textContent = short;
-  loadHistory().then(() => document.getElementById('chat-input').focus());
+
+  const inputEl = document.getElementById('chat-input');
+  inputEl.addEventListener('compositionstart', () => { imeComposing = true; });
+  inputEl.addEventListener('compositionend',   () => { imeComposing = false; });
+
+  loadHistory().then(() => inputEl.focus());
 }
 
 // ── Load history ──────────────────────────────────────────
@@ -1560,7 +1566,7 @@ function fillInput(text) {
 }
 
 function onInputKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key === 'Enter' && !e.shiftKey && !imeComposing) { e.preventDefault(); sendMessage(); }
 }
 
 function autoGrow(el) {

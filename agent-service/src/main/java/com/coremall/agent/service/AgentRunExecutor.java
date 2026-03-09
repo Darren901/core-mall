@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -51,7 +52,7 @@ public class AgentRunExecutor {
             log.info("[AgentRun] Executing runId={} userId={}", runId, userId);
             String reply = chatClient.prompt()
                     .user(userMessage)
-                    .advisors(a -> a.param(org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID, userId))
+                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId.replace("-", "")))
                     .tools(orderAgentTools)
                     .call()
                     .content();

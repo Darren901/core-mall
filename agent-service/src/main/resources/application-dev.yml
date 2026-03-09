@@ -30,7 +30,7 @@ spring:
           api-key: ${GOOGLE_GENAI_API_KEY:}
           text:
             options:
-              model: text-embedding-004
+              model: gemini-embedding-001
     chat:
       memory:
         repository:
