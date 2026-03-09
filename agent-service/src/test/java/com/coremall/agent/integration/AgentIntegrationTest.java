@@ -76,6 +76,10 @@ class AgentIntegrationTest {
     @MockBean
     private org.springframework.ai.vectorstore.VectorStore vectorStore;
 
+    /** 停用真實 EmbeddingModel（測試環境無 API key，讓 @ConditionalOnMissingBean 跳過 auto-config） */
+    @MockBean
+    private org.springframework.ai.embedding.EmbeddingModel embeddingModel;
+
     @Autowired
     private WebTestClient webTestClient;
 

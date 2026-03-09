@@ -27,19 +27,16 @@ spring:
             model: gemini-2.5-flash
             temperature: 0.2
         embedding:
-          options:
-            model: text-embedding-004
+          api-key: ${GOOGLE_GENAI_API_KEY:}
+          text:
+            options:
+              model: text-embedding-004
     chat:
       memory:
         repository:
           redis:
             index-name: coremall-chat-memory
             key-prefix: "chat-memory:"
-    vectorstore:
-      redis:
-        initialize-schema: true
-        index-name: coremall-ltm
-        prefix: "ltm:"
 
 order-service:
   base-url: http://localhost:8082
