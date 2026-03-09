@@ -897,6 +897,51 @@
       0%, 100% { opacity: 1; }
       50%       { opacity: 0; }
     }
+
+    /* ─── HISTORY ──────────────────────────────────────────── */
+    .history-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0 16px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+    .history-divider::before, .history-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border-subtle);
+    }
+    .history-reply {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      opacity: 0.72;
+    }
+    .history-reply-text {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-left: 2px solid var(--border-dim);
+      padding: 12px 16px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+    }
+    .new-session-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 0 20px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--gold);
+      opacity: 0.6;
+    }
+    .new-session-divider::before, .new-session-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--gold-glow);
+    }
   </style>
 </head>
 <body>
@@ -1178,7 +1223,54 @@ function renderChat() {
   document.getElementById('chat-screen').style.display  = 'flex';
   const short = authUserId ? authUserId.substring(0, 12) + '…' : 'AUTHENTICATED';
   document.getElementById('hdr-uid').textContent = short;
-  document.getElementById('chat-input').focus();
+  loadHistory().then(() => document.getElementById('chat-input').focus());
+}
+
+// ── Load history ──────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/v1/agent/memory', {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    if (!res.ok) return;
+    const body = await res.json();
+    if (!body.success || !body.data || body.data.length === 0) return;
+
+    const container = msgs();
+
+    // 歷史分隔線
+    const divider = document.createElement('div');
+    divider.className = 'history-divider';
+    divider.textContent = '歷史對話';
+    container.appendChild(divider);
+
+    // 渲染歷史訊息
+    body.data.forEach(m => {
+      if (m.role === 'user') {
+        appendUserMsg(m.content);
+      } else {
+        const el = document.createElement('div');
+        el.className = 'history-reply';
+        el.innerHTML = `
+          <div class="agent-icon" style="opacity:0.45">AI</div>
+          <div class="history-reply-text">${esc(m.content)}</div>
+        `;
+        container.appendChild(el);
+      }
+    });
+
+    // 新對話分隔線
+    const newDiv = document.createElement('div');
+    newDiv.className = 'new-session-divider';
+    newDiv.textContent = '新對話';
+    container.appendChild(newDiv);
+
+    // 移除 empty-state（有歷史就不需要了）
+    const es = document.getElementById('empty-state');
+    if (es) es.remove();
+
+    scrollDown();
+  } catch { /* 靜默失敗，不影響主流程 */ }
 }
 
 // ── Send message ──────────────────────────────────────────
