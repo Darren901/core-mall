@@ -72,6 +72,10 @@ class AgentIntegrationTest {
     @MockBean
     private com.coremall.agent.client.OrderServiceClient orderServiceClient;
 
+    /** 停用真實 RedisVectorStore（需 Redis Stack，測試環境用 plain Redis） */
+    @MockBean
+    private org.springframework.ai.vectorstore.VectorStore vectorStore;
+
     @Autowired
     private WebTestClient webTestClient;
 
@@ -101,6 +105,7 @@ class AgentIntegrationTest {
 
         webTestClient.post().uri("/api/v1/agent/chat")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User-Id", "test-user")
                 .bodyValue(objectMapper.writeValueAsString(new ChatRequest("幫我訂5個蘋果")))
                 .exchange()
                 .expectStatus().isAccepted()
@@ -116,6 +121,7 @@ class AgentIntegrationTest {
 
         String body = webTestClient.post().uri("/api/v1/agent/chat")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User-Id", "test-user")
                 .bodyValue(objectMapper.writeValueAsString(new ChatRequest("測試訊息")))
                 .exchange()
                 .expectStatus().isAccepted()
@@ -144,6 +150,7 @@ class AgentIntegrationTest {
 
         String body = webTestClient.post().uri("/api/v1/agent/chat")
                 .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User-Id", "test-user")
                 .bodyValue(objectMapper.writeValueAsString(new ChatRequest("幫我訂5個蘋果")))
                 .exchange()
                 .expectStatus().isAccepted()
@@ -167,6 +174,7 @@ class AgentIntegrationTest {
         var callSpec = org.mockito.Mockito.mock(ChatClient.CallResponseSpec.class);
         when(chatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
+        when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
         when(promptSpec.tools(any())).thenReturn(promptSpec);
         when(promptSpec.call()).thenReturn(callSpec);
         when(callSpec.content()).thenReturn("好的，我已幫您完成操作。");
@@ -179,6 +187,7 @@ class AgentIntegrationTest {
         var callSpec = org.mockito.Mockito.mock(ChatClient.CallResponseSpec.class);
         when(chatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
+        when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
 
         // 當 .tools(orderAgentTools) 被呼叫時，抓取 OrderAgentTools 實例並直接呼叫
         doAnswer(invocation -> {

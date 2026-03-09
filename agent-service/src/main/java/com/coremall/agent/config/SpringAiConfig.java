@@ -2,18 +2,43 @@ package com.coremall.agent.config;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.VectorStoreChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.redis.RedisVectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import redis.clients.jedis.JedisPooled;
 
 @Configuration
 public class SpringAiConfig {
 
     @Bean
-    public ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory) {
+    public JedisPooled jedisPooled(
+            @Value("${spring.data.redis.host:localhost}") String host,
+            @Value("${spring.data.redis.port:6379}") int port) {
+        return new JedisPooled(host, port);
+    }
+
+    @Bean
+    public VectorStore vectorStore(JedisPooled jedisPooled, EmbeddingModel embeddingModel) {
+        return RedisVectorStore.builder(jedisPooled, embeddingModel)
+                .indexName("coremall-ltm")
+                .prefix("ltm:")
+                .initializeSchema(true)
+                .build();
+    }
+
+    @Bean
+    public ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory, VectorStore vectorStore) {
         return ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(
+                        VectorStoreChatMemoryAdvisor.builder(vectorStore).build(),
+                        MessageChatMemoryAdvisor.builder(chatMemory).build()
+                )
                 .defaultSystem("""
                         你是 CoreMall 電商平台的訂單管理助理，專門協助用戶處理訂單相關事務。
 
