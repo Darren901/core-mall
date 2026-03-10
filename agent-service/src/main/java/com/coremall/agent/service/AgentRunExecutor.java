@@ -66,7 +66,7 @@ public class AgentRunExecutor {
             if (sink != null) {
                 sink.tryEmitNext(ServerSentEvent.<String>builder()
                         .event("run-completed")
-                        .data(toJson(Map.of("reply", reply)))
+                        .data(toJson(Map.of("reply", reply != null ? reply : "")))
                         .build());
                 sink.tryEmitComplete();
             }
