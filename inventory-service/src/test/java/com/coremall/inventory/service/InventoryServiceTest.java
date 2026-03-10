@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import java.util.Optional;
@@ -53,7 +54,7 @@ class InventoryServiceTest {
 
         assertThat(iphoneInventory.getQuantity()).isEqualTo(7);
         then(inventoryRepository).should().save(iphoneInventory);
-        then(rabbitTemplate).should(never()).convertAndSend(any(String.class), any(String.class), any(Object.class));
+        then(rabbitTemplate).should(never()).convertAndSend(any(String.class), any(String.class), any(Object.class), any(MessagePostProcessor.class));
     }
 
     @Test
@@ -69,7 +70,8 @@ class InventoryServiceTest {
         then(rabbitTemplate).should().convertAndSend(
                 eq(RabbitMQConfig.INVENTORY_EXCHANGE),
                 eq(RabbitMQConfig.INSUFFICIENT_ROUTING_KEY),
-                eventCaptor.capture()
+                eventCaptor.capture(),
+                any(MessagePostProcessor.class)
         );
 
         InsufficientStockEvent event = eventCaptor.getValue();
@@ -88,6 +90,6 @@ class InventoryServiceTest {
                 .doesNotThrowAnyException();
 
         then(inventoryRepository).should(never()).save(any());
-        then(rabbitTemplate).should(never()).convertAndSend(any(String.class), any(String.class), any(Object.class));
+        then(rabbitTemplate).should(never()).convertAndSend(any(String.class), any(String.class), any(Object.class), any(MessagePostProcessor.class));
     }
 }

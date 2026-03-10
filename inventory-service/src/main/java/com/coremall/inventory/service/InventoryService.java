@@ -49,7 +49,12 @@ public class InventoryService {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.INVENTORY_EXCHANGE,
                     RabbitMQConfig.INSUFFICIENT_ROUTING_KEY,
-                    event);
+                    event,
+                    msg -> {
+                        // 移除 __TypeId__ header，避免 consumer 嘗試 load inventory 的 class
+                        msg.getMessageProperties().getHeaders().remove("__TypeId__");
+                        return msg;
+                    });
         }
     }
 }
