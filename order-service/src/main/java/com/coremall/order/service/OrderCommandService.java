@@ -6,12 +6,15 @@ import com.coremall.order.dto.OrderResponse;
 import com.coremall.order.dto.UpdateOrderRequest;
 import com.coremall.order.exception.LockConflictException;
 import com.coremall.order.exception.OrderNotFoundException;
+import com.coremall.order.jpa.entity.OrderStatus;
+import com.coremall.order.jpa.repository.OrderRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,10 +26,14 @@ public class OrderCommandService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final OrderRepository orderRepository;
 
-    public OrderCommandService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public OrderCommandService(StringRedisTemplate redisTemplate,
+                               ObjectMapper objectMapper,
+                               OrderRepository orderRepository) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.orderRepository = orderRepository;
     }
 
     /**
@@ -131,6 +138,36 @@ public class OrderCommandService {
             redisTemplate.delete(lockKey);
             log.debug("[Order] cancelOrder lock released: key={}", lockKey);
         }
+    }
+
+    /**
+     * Saga 補償：將訂單改為 CANCELLED。
+     * Redis 優先；TTL 過期時 fallback 直接更新 PostgreSQL。
+     * 兩者都找不到則 log warn 跳過（不拋例外）。
+     */
+    @Transactional
+    public void cancelOrderBySaga(String orderId) {
+        log.info("[Order] cancelOrderBySaga start: orderId={}", orderId);
+
+        String json = redisTemplate.opsForValue().get(RedisConfig.ORDER_KEY_PREFIX + orderId);
+        if (json != null) {
+            OrderResponse existing = deserialize(json);
+            OrderResponse cancelled = new OrderResponse(
+                    existing.id(), existing.userId(), existing.productName(),
+                    existing.quantity(), "CANCELLED", existing.createdAt());
+            redisTemplate.opsForValue().set(
+                    RedisConfig.ORDER_KEY_PREFIX + orderId, serialize(cancelled), RedisConfig.ORDER_TTL);
+            log.info("[Order] cancelOrderBySaga Redis hit: orderId={} → CANCELLED", orderId);
+            return;
+        }
+
+        // Redis miss → DB fallback
+        orderRepository.findById(UUID.fromString(orderId)).ifPresentOrElse(order -> {
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setUpdatedAt(LocalDateTime.now());
+            orderRepository.save(order);
+            log.info("[Order] cancelOrderBySaga DB hit: orderId={} → CANCELLED", orderId);
+        }, () -> log.warn("[Order] cancelOrderBySaga: 訂單不存在 orderId={}", orderId));
     }
 
     // ── private helpers ──────────────────────────────────────────────────────

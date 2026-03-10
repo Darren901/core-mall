@@ -35,4 +35,24 @@ public class RabbitMQConfig {
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
+
+    // ── 消費端：inventory 補償事件 ────────────────────────────────────────────
+
+    public static final String INVENTORY_EXCHANGE = "inventory.events";
+    public static final String INVENTORY_QUEUE    = "inventory.events.queue";
+
+    @Bean
+    public TopicExchange inventoryExchange() {
+        return new TopicExchange(INVENTORY_EXCHANGE);
+    }
+
+    @Bean
+    public Queue inventoryEventsQueue() {
+        return new Queue(INVENTORY_QUEUE, true);
+    }
+
+    @Bean
+    public Binding inventoryEventsBinding(Queue inventoryEventsQueue, TopicExchange inventoryExchange) {
+        return BindingBuilder.bind(inventoryEventsQueue).to(inventoryExchange).with("inventory.#");
+    }
 }

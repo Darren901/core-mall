@@ -6,6 +6,9 @@ import com.coremall.order.dto.OrderResponse;
 import com.coremall.order.dto.UpdateOrderRequest;
 import com.coremall.order.exception.LockConflictException;
 import com.coremall.order.exception.OrderNotFoundException;
+import com.coremall.order.jpa.entity.Order;
+import com.coremall.order.jpa.entity.OrderStatus;
+import com.coremall.order.jpa.repository.OrderRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,14 +23,19 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -43,6 +51,8 @@ class OrderCommandServiceTest {
     private ValueOperations<String, String> valueOps;
     @Mock
     private SetOperations<String, String> setOps;
+    @Mock
+    private OrderRepository orderRepository;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -149,6 +159,62 @@ class OrderCommandServiceTest {
         assertThat(result.quantity()).isEqualTo(5);
         assertThat(result.status()).isEqualTo("UPDATED");
         verify(valueOps).set(eq(RedisConfig.ORDER_KEY_PREFIX + orderId), anyString(), eq(RedisConfig.ORDER_TTL));
+    }
+
+    // ── cancelOrderBySaga ────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("cancelOrderBySaga：Redis 命中 → 改 CANCELLED 寫回 Redis")
+    void shouldCancelOrderInRedisWhenFound() throws Exception {
+        String orderId = UUID.randomUUID().toString();
+        OrderResponse existing = new OrderResponse(orderId, "u1", "iPhone 15", 2, "CREATED", "2026-03-10T00:00:00");
+        String existingJson = new ObjectMapper().writeValueAsString(existing);
+
+        given(valueOps.get(RedisConfig.ORDER_KEY_PREFIX + orderId)).willReturn(existingJson);
+
+        service.cancelOrderBySaga(orderId);
+
+        then(valueOps).should().set(eq(RedisConfig.ORDER_KEY_PREFIX + orderId), anyString(), eq(RedisConfig.ORDER_TTL));
+        then(orderRepository).should(never()).findById(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("cancelOrderBySaga：Redis miss + DB 命中 → 直接更新 DB")
+    void shouldCancelOrderInDbWhenRedisMiss() {
+        String orderId = UUID.randomUUID().toString();
+        Order order = buildOrder(orderId, OrderStatus.CREATED);
+
+        given(valueOps.get(RedisConfig.ORDER_KEY_PREFIX + orderId)).willReturn(null);
+        given(orderRepository.findById(UUID.fromString(orderId))).willReturn(Optional.of(order));
+
+        service.cancelOrderBySaga(orderId);
+
+        then(orderRepository).should().save(order);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("cancelOrderBySaga：Redis miss + DB 也 miss → log warn 不拋例外")
+    void shouldSkipWhenOrderNotFoundAnywhere() {
+        String orderId = UUID.randomUUID().toString();
+
+        given(valueOps.get(RedisConfig.ORDER_KEY_PREFIX + orderId)).willReturn(null);
+        given(orderRepository.findById(UUID.fromString(orderId))).willReturn(Optional.empty());
+
+        assertThatCode(() -> service.cancelOrderBySaga(orderId)).doesNotThrowAnyException();
+        then(orderRepository).should(never()).save(any());
+    }
+
+    private Order buildOrder(String orderId, OrderStatus status) {
+        Order order = new Order();
+        order.setId(UUID.fromString(orderId));
+        order.setUserId("u1");
+        order.setProductName("iPhone 15");
+        order.setQuantity(2);
+        order.setStatus(status);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+        return order;
     }
 
     @Test
