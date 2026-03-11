@@ -18,7 +18,10 @@ public class RabbitMQConfig {
     public static final String ORDER_EXCHANGE = "order.events";
     /** 本服務專屬 queue，不與 order-service 共用 */
     public static final String ORDER_QUEUE = "inventory.order.queue";
-    public static final String ORDER_ROUTING_KEY = "order.ORDER_CREATED";
+    public static final String ORDER_CREATED_ROUTING_KEY  = "order.ORDER_CREATED";
+    public static final String ORDER_CANCELLED_ROUTING_KEY = "order.ORDER_CANCELLED";
+    /** 向下相容舊引用 */
+    public static final String ORDER_ROUTING_KEY = ORDER_CREATED_ROUTING_KEY;
 
     @Bean
     public TopicExchange orderExchange() {
@@ -31,8 +34,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding inventoryOrderBinding(Queue inventoryOrderQueue, TopicExchange orderExchange) {
-        return BindingBuilder.bind(inventoryOrderQueue).to(orderExchange).with(ORDER_ROUTING_KEY);
+    public Binding inventoryOrderCreatedBinding(Queue inventoryOrderQueue, TopicExchange orderExchange) {
+        return BindingBuilder.bind(inventoryOrderQueue).to(orderExchange).with(ORDER_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding inventoryOrderCancelledBinding(Queue inventoryOrderQueue, TopicExchange orderExchange) {
+        return BindingBuilder.bind(inventoryOrderQueue).to(orderExchange).with(ORDER_CANCELLED_ROUTING_KEY);
     }
 
     // ── 發佈端：補償事件 inventory.events exchange ────────────────────────────

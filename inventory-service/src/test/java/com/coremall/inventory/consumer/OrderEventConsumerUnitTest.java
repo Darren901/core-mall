@@ -75,6 +75,40 @@ class OrderEventConsumerUnitTest {
     }
 
     @Test
+    @DisplayName("ORDER_CANCELLED 事件：呼叫 restockInventory 返還庫存")
+    void shouldRestockWhenOrderCancelled() {
+        MessageProperties props = new MessageProperties();
+        props.setMessageId("msg-cancel-001");
+        String cancelJson = "{\"id\":\"order-y\",\"userId\":\"U1\",\"productName\":\"iPhone 15\",\"quantity\":2,\"status\":\"CANCELLED\",\"createdAt\":\"2026\"}";
+        Message message = MessageBuilder.withBody(cancelJson.getBytes()).andProperties(props).build();
+
+        given(processedEventRepository.existsById("msg-cancel-001")).willReturn(false);
+
+        consumer.consume(message);
+
+        then(inventoryService).should().restockInventory("order-y", "iPhone 15", 2);
+        then(inventoryService).should(never()).deductStock(anyString(), anyString(), any(int.class));
+        then(processedEventRepository).should().save(any(ProcessedEvent.class));
+    }
+
+    @Test
+    @DisplayName("未知 status 事件：跳過業務處理，仍記錄 processedEvent")
+    void shouldSkipUnknownStatus() {
+        MessageProperties props = new MessageProperties();
+        props.setMessageId("msg-unknown-001");
+        String unknownJson = "{\"id\":\"order-z\",\"userId\":\"U1\",\"productName\":\"iPhone 15\",\"quantity\":1,\"status\":\"SAGA_CANCELLED\",\"createdAt\":\"2026\"}";
+        Message message = MessageBuilder.withBody(unknownJson.getBytes()).andProperties(props).build();
+
+        given(processedEventRepository.existsById("msg-unknown-001")).willReturn(false);
+
+        consumer.consume(message);
+
+        then(inventoryService).should(never()).deductStock(anyString(), anyString(), any(int.class));
+        then(inventoryService).should(never()).restockInventory(anyString(), anyString(), any(int.class));
+        then(processedEventRepository).should().save(any(ProcessedEvent.class));
+    }
+
+    @Test
     @DisplayName("payload 解析失敗時，拋出 RuntimeException（觸發 NACK）")
     void shouldThrowRuntimeExceptionOnParseError() {
         MessageProperties props = new MessageProperties();

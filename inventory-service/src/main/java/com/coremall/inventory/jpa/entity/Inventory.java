@@ -27,6 +27,10 @@ public class Inventory {
         this.quantity -= amount;
     }
 
+    public void restock(int amount) {
+        this.quantity += amount;
+    }
+
     public String getProductName() { return productName; }
     public int getQuantity() { return quantity; }
 }

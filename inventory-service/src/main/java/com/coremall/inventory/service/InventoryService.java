@@ -27,6 +27,19 @@ public class InventoryService {
     }
 
     @Transactional
+    public void restockInventory(String orderId, String productName, int qty) {
+        Optional<Inventory> found = inventoryRepository.findById(productName);
+        if (found.isEmpty()) {
+            log.warn("[Inventory] 商品不存在，跳過返庫：productName={} orderId={}", productName, orderId);
+            return;
+        }
+        Inventory inventory = found.get();
+        inventory.restock(qty);
+        inventoryRepository.save(inventory);
+        log.info("[Inventory] 庫存返還成功：productName={} qty={} newTotal={}", productName, qty, inventory.getQuantity());
+    }
+
+    @Transactional
     public void deductStock(String orderId, String productName, int requestedQty) {
         Optional<Inventory> found = inventoryRepository.findById(productName);
 

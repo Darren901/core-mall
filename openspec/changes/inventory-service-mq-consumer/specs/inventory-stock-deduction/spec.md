@@ -43,3 +43,22 @@
 #### Scenario: 補償事件出現在 queue
 - **WHEN** 庫存不足觸發補償事件
 - **THEN** `inventory.events.queue` SHALL 收到包含正確 payload 的訊息
+
+---
+
+### Requirement: 消費 ORDER_CANCELLED 事件並返還庫存
+系統 SHALL 監聽 `inventory.order.queue`，收到 `ORDER_CANCELLED` 事件（使用者主動取消）後，將對應商品庫存返還。
+
+**注意**：僅訂閱 routing key `order.ORDER_CANCELLED`，不訂閱 `order.ORDER_SAGA_CANCELLED`，因 Saga 補償取消時庫存從未被扣過。
+
+#### Scenario: 收到 ORDER_CANCELLED 事件，庫存返還成功
+- **WHEN** 收到 ORDER_CANCELLED 事件，productName="iPhone 15"，quantity=2，庫存現有 8
+- **THEN** 系統 SHALL 將該商品庫存更新為 10，並儲存至 DB
+
+#### Scenario: 收到 ORDER_CANCELLED 事件，商品不存在
+- **WHEN** 收到 ORDER_CANCELLED 事件，productName="不存在的商品"
+- **THEN** 系統 SHALL 記錄 WARN log 並跳過，不拋例外
+
+#### Scenario: 重複 ORDER_CANCELLED 事件，冪等跳過
+- **WHEN** 相同 messageId 的 ORDER_CANCELLED 事件被投遞兩次
+- **THEN** 第二次 SHALL 被冪等跳過，庫存只返還一次

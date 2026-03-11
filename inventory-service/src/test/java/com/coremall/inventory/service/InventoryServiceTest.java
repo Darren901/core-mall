@@ -26,7 +26,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("InventoryService - 庫存扣減邏輯")
+@DisplayName("InventoryService - 庫存扣減與返還邏輯")
 class InventoryServiceTest {
 
     @Mock
@@ -91,5 +91,29 @@ class InventoryServiceTest {
 
         then(inventoryRepository).should(never()).save(any());
         then(rabbitTemplate).should(never()).convertAndSend(any(String.class), any(String.class), any(Object.class), any(MessagePostProcessor.class));
+    }
+
+    // ── restockInventory ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("取消訂單返庫：庫存正確加回")
+    void shouldRestockWhenOrderCancelled() {
+        given(inventoryRepository.findById("iPhone 15")).willReturn(Optional.of(iphoneInventory));
+
+        inventoryService.restockInventory("order-004", "iPhone 15", 3);
+
+        assertThat(iphoneInventory.getQuantity()).isEqualTo(13);
+        then(inventoryRepository).should().save(iphoneInventory);
+    }
+
+    @Test
+    @DisplayName("取消訂單返庫：商品不存在時 log warn，不拋例外")
+    void shouldLogWarnAndSkipWhenProductNotFoundOnRestock() {
+        given(inventoryRepository.findById("不存在的商品")).willReturn(Optional.empty());
+
+        assertThatCode(() -> inventoryService.restockInventory("order-005", "不存在的商品", 1))
+                .doesNotThrowAnyException();
+
+        then(inventoryRepository).should(never()).save(any());
     }
 }

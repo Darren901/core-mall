@@ -159,24 +159,24 @@ public class OrderCommandService {
             OrderResponse existing = deserialize(json);
             OrderResponse cancelled = new OrderResponse(
                     existing.id(), existing.userId(), existing.productName(),
-                    existing.quantity(), "CANCELLED", existing.createdAt());
+                    existing.quantity(), "SAGA_CANCELLED", existing.createdAt());
             redisTemplate.opsForValue().set(
                     RedisConfig.ORDER_KEY_PREFIX + orderId, serialize(cancelled), RedisConfig.ORDER_TTL);
             redisTemplate.opsForSet().add(RedisConfig.PENDING_RELAY_KEY, orderId);
-            log.info("[Order] cancelOrderBySaga Redis hit: orderId={} → CANCELLED, added to pending-relay", orderId);
+            log.info("[Order] cancelOrderBySaga Redis hit: orderId={} → SAGA_CANCELLED, added to pending-relay", orderId);
             return;
         }
 
         // Redis miss → DB fallback：直接更新 DB 並寫 OutboxEvent（relay 無法從過期 Redis 取資料）
         orderRepository.findById(UUID.fromString(orderId)).ifPresentOrElse(order -> {
-            order.setStatus(OrderStatus.CANCELLED);
+            order.setStatus(OrderStatus.SAGA_CANCELLED);
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
             OrderResponse cancelled = new OrderResponse(
                     order.getId().toString(), order.getUserId(), order.getProductName(),
-                    order.getQuantity(), "CANCELLED", order.getCreatedAt().toString());
-            outboxEventRepository.save(OutboxEvent.of(order.getId(), "ORDER_CANCELLED", serialize(cancelled)));
-            log.info("[Order] cancelOrderBySaga DB hit: orderId={} → CANCELLED + OutboxEvent saved", orderId);
+                    order.getQuantity(), "SAGA_CANCELLED", order.getCreatedAt().toString());
+            outboxEventRepository.save(OutboxEvent.of(order.getId(), "ORDER_SAGA_CANCELLED", serialize(cancelled)));
+            log.info("[Order] cancelOrderBySaga DB hit: orderId={} → SAGA_CANCELLED + OutboxEvent saved", orderId);
         }, () -> log.warn("[Order] cancelOrderBySaga: 訂單不存在 orderId={}", orderId));
     }
 

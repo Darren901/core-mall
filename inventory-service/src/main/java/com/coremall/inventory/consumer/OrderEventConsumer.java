@@ -49,10 +49,20 @@ public class OrderEventConsumer {
 
         try {
             OrderEventPayload payload = parsePayload(message);
-            log.info("[Consumer] 處理 ORDER_CREATED：messageId={} orderId={} product={} qty={}",
-                    messageId, payload.id(), payload.productName(), payload.quantity());
+            String status = payload.status();
 
-            inventoryService.deductStock(payload.id(), payload.productName(), payload.quantity());
+            if ("CREATED".equals(status)) {
+                log.info("[Consumer] 處理 ORDER_CREATED：messageId={} orderId={} product={} qty={}",
+                        messageId, payload.id(), payload.productName(), payload.quantity());
+                inventoryService.deductStock(payload.id(), payload.productName(), payload.quantity());
+            } else if ("CANCELLED".equals(status)) {
+                log.info("[Consumer] 處理 ORDER_CANCELLED：messageId={} orderId={} product={} qty={}",
+                        messageId, payload.id(), payload.productName(), payload.quantity());
+                inventoryService.restockInventory(payload.id(), payload.productName(), payload.quantity());
+            } else {
+                log.warn("[Consumer] 未知 status，跳過：messageId={} status={}", messageId, status);
+            }
+
             processedEventRepository.save(ProcessedEvent.of(messageId));
 
         } catch (Exception e) {

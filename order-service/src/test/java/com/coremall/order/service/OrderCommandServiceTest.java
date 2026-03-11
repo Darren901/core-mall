@@ -168,7 +168,7 @@ class OrderCommandServiceTest {
     // ── cancelOrderBySaga ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("cancelOrderBySaga：Redis 命中 → 改 CANCELLED 寫回 Redis 並加入 pending-relay")
+    @DisplayName("cancelOrderBySaga：Redis 命中 → 改 SAGA_CANCELLED 寫回 Redis 並加入 pending-relay")
     void shouldCancelOrderInRedisWhenFound() throws Exception {
         String orderId = UUID.randomUUID().toString();
         OrderResponse existing = new OrderResponse(orderId, "u1", "iPhone 15", 2, "CREATED", "2026-03-10T00:00:00");
@@ -184,7 +184,7 @@ class OrderCommandServiceTest {
     }
 
     @Test
-    @DisplayName("cancelOrderBySaga：Redis miss + DB 命中 → 更新 DB 並直接寫 OutboxEvent")
+    @DisplayName("cancelOrderBySaga：Redis miss + DB 命中 → 更新為 SAGA_CANCELLED 並直接寫 OutboxEvent")
     void shouldCancelOrderInDbWhenRedisMiss() {
         String orderId = UUID.randomUUID().toString();
         Order order = buildOrder(orderId, OrderStatus.CREATED);
@@ -195,7 +195,7 @@ class OrderCommandServiceTest {
         service.cancelOrderBySaga(orderId);
 
         then(orderRepository).should().save(order);
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.SAGA_CANCELLED);
         then(outboxEventRepository).should().save(any(OutboxEvent.class));
     }
 
