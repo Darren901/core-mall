@@ -6,8 +6,10 @@ import com.coremall.order.dto.OrderResponse;
 import com.coremall.order.dto.UpdateOrderRequest;
 import com.coremall.order.exception.LockConflictException;
 import com.coremall.order.exception.OrderNotFoundException;
+import com.coremall.order.jpa.entity.OutboxEvent;
 import com.coremall.order.jpa.entity.OrderStatus;
 import com.coremall.order.jpa.repository.OrderRepository;
+import com.coremall.order.jpa.repository.OutboxEventRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -27,13 +29,16 @@ public class OrderCommandService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final OrderRepository orderRepository;
+    private final OutboxEventRepository outboxEventRepository;
 
     public OrderCommandService(StringRedisTemplate redisTemplate,
                                ObjectMapper objectMapper,
-                               OrderRepository orderRepository) {
+                               OrderRepository orderRepository,
+                               OutboxEventRepository outboxEventRepository) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.orderRepository = orderRepository;
+        this.outboxEventRepository = outboxEventRepository;
     }
 
     /**
@@ -157,16 +162,21 @@ public class OrderCommandService {
                     existing.quantity(), "CANCELLED", existing.createdAt());
             redisTemplate.opsForValue().set(
                     RedisConfig.ORDER_KEY_PREFIX + orderId, serialize(cancelled), RedisConfig.ORDER_TTL);
-            log.info("[Order] cancelOrderBySaga Redis hit: orderId={} → CANCELLED", orderId);
+            redisTemplate.opsForSet().add(RedisConfig.PENDING_RELAY_KEY, orderId);
+            log.info("[Order] cancelOrderBySaga Redis hit: orderId={} → CANCELLED, added to pending-relay", orderId);
             return;
         }
 
-        // Redis miss → DB fallback
+        // Redis miss → DB fallback：直接更新 DB 並寫 OutboxEvent（relay 無法從過期 Redis 取資料）
         orderRepository.findById(UUID.fromString(orderId)).ifPresentOrElse(order -> {
             order.setStatus(OrderStatus.CANCELLED);
             order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
-            log.info("[Order] cancelOrderBySaga DB hit: orderId={} → CANCELLED", orderId);
+            OrderResponse cancelled = new OrderResponse(
+                    order.getId().toString(), order.getUserId(), order.getProductName(),
+                    order.getQuantity(), "CANCELLED", order.getCreatedAt().toString());
+            outboxEventRepository.save(OutboxEvent.of(order.getId(), "ORDER_CANCELLED", serialize(cancelled)));
+            log.info("[Order] cancelOrderBySaga DB hit: orderId={} → CANCELLED + OutboxEvent saved", orderId);
         }, () -> log.warn("[Order] cancelOrderBySaga: 訂單不存在 orderId={}", orderId));
     }
 

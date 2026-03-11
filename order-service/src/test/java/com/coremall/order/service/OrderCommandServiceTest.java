@@ -8,7 +8,9 @@ import com.coremall.order.exception.LockConflictException;
 import com.coremall.order.exception.OrderNotFoundException;
 import com.coremall.order.jpa.entity.Order;
 import com.coremall.order.jpa.entity.OrderStatus;
+import com.coremall.order.jpa.entity.OutboxEvent;
 import com.coremall.order.jpa.repository.OrderRepository;
+import com.coremall.order.jpa.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,6 +55,8 @@ class OrderCommandServiceTest {
     private SetOperations<String, String> setOps;
     @Mock
     private OrderRepository orderRepository;
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -164,7 +168,7 @@ class OrderCommandServiceTest {
     // ── cancelOrderBySaga ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("cancelOrderBySaga：Redis 命中 → 改 CANCELLED 寫回 Redis")
+    @DisplayName("cancelOrderBySaga：Redis 命中 → 改 CANCELLED 寫回 Redis 並加入 pending-relay")
     void shouldCancelOrderInRedisWhenFound() throws Exception {
         String orderId = UUID.randomUUID().toString();
         OrderResponse existing = new OrderResponse(orderId, "u1", "iPhone 15", 2, "CREATED", "2026-03-10T00:00:00");
@@ -175,11 +179,12 @@ class OrderCommandServiceTest {
         service.cancelOrderBySaga(orderId);
 
         then(valueOps).should().set(eq(RedisConfig.ORDER_KEY_PREFIX + orderId), anyString(), eq(RedisConfig.ORDER_TTL));
+        then(setOps).should().add(eq(RedisConfig.PENDING_RELAY_KEY), eq(orderId));
         then(orderRepository).should(never()).findById(any(UUID.class));
     }
 
     @Test
-    @DisplayName("cancelOrderBySaga：Redis miss + DB 命中 → 直接更新 DB")
+    @DisplayName("cancelOrderBySaga：Redis miss + DB 命中 → 更新 DB 並直接寫 OutboxEvent")
     void shouldCancelOrderInDbWhenRedisMiss() {
         String orderId = UUID.randomUUID().toString();
         Order order = buildOrder(orderId, OrderStatus.CREATED);
@@ -191,6 +196,7 @@ class OrderCommandServiceTest {
 
         then(orderRepository).should().save(order);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        then(outboxEventRepository).should().save(any(OutboxEvent.class));
     }
 
     @Test
