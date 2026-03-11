@@ -14,7 +14,7 @@ echo "▶ 啟動 discovery-service..."
 mvn -f "$PROJECT_DIR/pom.xml" spring-boot:run -pl discovery-service \
   > "$LOG_DIR/discovery.log" 2>&1 &
 echo "⏳ 等待 Eureka 啟動 (20s)..."
-sleep 20
+sleep 10
 
 echo "▶ 啟動 gateway-service..."
 mvn -f "$PROJECT_DIR/pom.xml" spring-boot:run -pl gateway-service \

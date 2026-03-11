@@ -22,6 +22,10 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
 
 eureka:
   client:
