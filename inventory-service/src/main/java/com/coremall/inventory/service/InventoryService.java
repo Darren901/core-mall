@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class InventoryService {
@@ -51,6 +52,8 @@ public class InventoryService {
                     RabbitMQConfig.INSUFFICIENT_ROUTING_KEY,
                     event,
                     msg -> {
+                        // 設定 messageId 供 consumer 冪等保護使用
+                        msg.getMessageProperties().setMessageId(UUID.randomUUID().toString());
                         // 移除 __TypeId__ header，避免 consumer 嘗試 load inventory 的 class
                         msg.getMessageProperties().getHeaders().remove("__TypeId__");
                         return msg;
