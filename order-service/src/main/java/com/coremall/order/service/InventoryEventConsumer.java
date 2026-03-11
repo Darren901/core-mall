@@ -36,6 +36,7 @@ public class InventoryEventConsumer {
     @Transactional
     public void consume(Message message) {
         String messageId = message.getMessageProperties().getMessageId();
+        log.info("[InventoryConsumer] message: {}", message);
         if (messageId == null) {
             log.warn("[InventoryConsumer] messageId 為 null，跳過訊息");
             return;
