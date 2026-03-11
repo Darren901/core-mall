@@ -1,6 +1,7 @@
 package com.coremall.agent.client;
 
 import com.coremall.agent.dto.OrderResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -24,6 +25,10 @@ class OrderServiceClientTest {
             "{\"success\":false,\"error\":{\"code\":\"ORDER_NOT_FOUND\",\"message\":\"訂單不存在\",\"details\":[]}}";
     private static final String ERROR_BODY_500 =
             "{\"success\":false,\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"系統內部錯誤\",\"details\":[]}}";
+
+    /** Spring Boot 預設 error body（非 ApiResponse 格式）*/
+    private static final String SPRING_DEFAULT_500 =
+            "{\"timestamp\":\"2026-01-01T00:00:00\",\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/internal/v1/orders/xxx\"}";
     private static final String ERROR_BODY_422 =
             "{\"success\":false,\"error\":{\"code\":\"INSUFFICIENT_STOCK\",\"message\":\"庫存不足，無法建立訂單：Apple\",\"details\":[]}}";
     private static final String ERROR_BODY_503 =
@@ -36,7 +41,7 @@ class OrderServiceClientTest {
         WebClient webClient = WebClient.builder()
                 .baseUrl(mockWebServer.url("/").toString())
                 .build();
-        client = new OrderServiceClient(webClient);
+        client = new OrderServiceClient(webClient, new ObjectMapper());
     }
 
     @AfterEach
@@ -164,6 +169,34 @@ class OrderServiceClientTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("系統內部錯誤")
                 .hasMessageNotContaining("500 Internal Server Error");
+    }
+
+    // ─── Spring 預設 error format fallback ────────────────────────────────────
+
+    @Test
+    @DisplayName("getOrder：500 Spring 預設 error body → 不拋 JSON 反序列化例外，回傳可讀訊息")
+    void shouldHandleSpringDefaultErrorBodyWithoutDeserializationException() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(500).addHeader("Content-Type", "application/json")
+                .setBody(SPRING_DEFAULT_500));
+
+        assertThatThrownBy(() -> client.getOrder("order-xxx"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageNotContaining("JSON decoding error")
+                .hasMessageNotContaining("Cannot construct instance");
+    }
+
+    @Test
+    @DisplayName("createOrder：500 Spring 預設 error body → 不拋 JSON 反序列化例外")
+    void shouldHandleSpringDefaultErrorBodyOnCreateOrder() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(500).addHeader("Content-Type", "application/json")
+                .setBody(SPRING_DEFAULT_500));
+
+        assertThatThrownBy(() -> client.createOrder("user-1", "Apple", 5, "idem-key"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageNotContaining("JSON decoding error")
+                .hasMessageNotContaining("Cannot construct instance");
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

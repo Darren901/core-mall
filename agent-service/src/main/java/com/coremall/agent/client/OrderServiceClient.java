@@ -2,6 +2,8 @@ package com.coremall.agent.client;
 
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.sharedkernel.response.ApiResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -21,9 +23,11 @@ import java.util.function.Function;
 public class OrderServiceClient {
 
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
 
-    public OrderServiceClient(WebClient orderServiceWebClient) {
+    public OrderServiceClient(WebClient orderServiceWebClient, ObjectMapper objectMapper) {
         this.webClient = orderServiceWebClient;
+        this.objectMapper = objectMapper;
     }
 
     public OrderResult createOrder(String userId, String productName, int quantity, String idempotencyKey) {
@@ -72,11 +76,23 @@ public class OrderServiceClient {
     }
 
     /**
-     * 將 4xx/5xx response 的 error.message 萃取為 RuntimeException，
-     * 取代預設含 URL 的 WebClientResponseException 訊息。
+     * 將 4xx/5xx response 的 error.message 萃取為 RuntimeException。
+     * 先讀 raw body String，再嘗試解析成 ApiResponse；
+     * 若 response body 不符合 ApiResponse 格式（如 Spring Boot 預設錯誤），
+     * 則 fallback 至泛型錯誤訊息，避免 JSON 反序列化例外洩漏到前端。
      */
     private Function<ClientResponse, Mono<? extends Throwable>> toFriendlyError() {
-        return resp -> resp.bodyToMono(new ParameterizedTypeReference<ApiResponse<Void>>() {})
-                .map(api -> new RuntimeException(api.error().message()));
+        return resp -> resp.bodyToMono(String.class)
+                .map(body -> {
+                    try {
+                        ApiResponse<Void> api = objectMapper.readValue(body, new TypeReference<>() {});
+                        if (api.error() != null) {
+                            return new RuntimeException(api.error().message());
+                        }
+                    } catch (Exception ignored) {
+                        // body 不是 ApiResponse 格式（例如 Spring Boot 預設 error）
+                    }
+                    return new RuntimeException("服務暫時無法處理請求，請稍後再試");
+                });
     }
 }
