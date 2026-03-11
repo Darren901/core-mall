@@ -18,28 +18,35 @@ Browser / Client
      ┌─────┴──────┐
      │            │
      ▼            ▼
-┌─────────┐  ┌─────────────┐
-│  user-  │  │   order-    │
-│ service │  │   service   │  Write-Behind + Outbox + 分散式鎖
-│  :8081  │  │   :8082     │
-└─────────┘  └──────┬──────┘
-                    │ RabbitMQ
-                    ▼
-          ┌──────────────────┐
-          │  agent-service   │  Spring AI + Gemini + Function Calling
-          │     :8083        │  SSE Streaming + Hybrid Memory
-          └──────────────────┘
-                    │
-          ┌─────────┴─────────┐
-          ▼                   ▼
-   Redis Stack           PostgreSQL
-  (Chat Memory        (Agent Run Log
-  + Vector Store)      + Order DB)
+┌─────────┐  ┌──────────────────────────────────────────┐
+│  user-  │  │            order-service  :8082           │
+│ service │  │  Write-Behind + Outbox + 分散式鎖 + 冪等  │
+│  :8081  │  └──────────────────┬───────────────────────┘
+└─────────┘                     │ RabbitMQ (order.events exchange)
+                                │ ORDER_CREATED / ORDER_CANCELLED
+                                │ ORDER_SAGA_CANCELLED
+                    ┌───────────┴────────────┐
+                    ▼                        ▼
+          ┌──────────────────┐   ┌───────────────────────┐
+          │  agent-service   │   │  inventory-service    │
+          │     :8083        │   │       :8084           │
+          │  Spring AI +     │   │  庫存扣減 / 返庫      │
+          │  Gemini + SSE    │   │  Saga 補償消費        │
+          └──────────────────┘   └──────────┬────────────┘
+                    │                        │ inventory.INSUFFICIENT
+                    │                        │ (inventory.events exchange)
+          ┌─────────┴─────────┐              │
+          ▼                   ▼              ▼
+   Redis Stack           PostgreSQL    order-service
+  (Chat Memory        (Order DB /      cancelOrderBySaga()
+  + Vector Store)      Agent Log)      → SAGA_CANCELLED
 
 ┌──────────────────────┐
 │  discovery-service   │  Eureka Server  :8761
 └──────────────────────┘
 ```
+
+> 完整 Exchange / Queue / Routing Key 說明見 [docs/eventmap.md](docs/eventmap.md)
 
 ---
 
@@ -52,6 +59,7 @@ Browser / Client
 | `user-service` | 8081 | 使用者註冊 / 登入，JWT 簽發 |
 | `order-service` | 8082 | 訂單 CRUD，Write-Behind + Outbox Pattern + 分散式鎖 + 冪等性 |
 | `agent-service` | 8083 | AI Agent，Function Calling + SSE Streaming + Hybrid Long-Term Memory |
+| `inventory-service` | 8084 | 庫存扣減 / 返庫，消費 order.events；Saga 補償事件發佈至 inventory.events |
 
 ---
 
@@ -65,7 +73,12 @@ Browser / Client
 ### Outbox Pattern（order-service）
 - 訂單操作與 Outbox 事件在同一 DB Transaction 寫入
 - `OutboxRelayService` 定期輪詢發佈至 RabbitMQ
-- 消費端冪等：`step:{runId}:{toolName}:{params}` TTL 1 小時
+- 消費端冪等：`messageId` 存 `processed_events` table
+
+### Saga Pattern（order-service ↔ inventory-service）
+- 下單觸發庫存扣減；庫存不足時發補償事件，自動取消訂單
+- 區分 `CANCELLED`（使用者取消，需返庫）與 `SAGA_CANCELLED`（補償取消，不返庫）
+- 完整流程見 [docs/eventmap.md](docs/eventmap.md)
 
 ### AI Agent（agent-service）
 - **Spring AI 1.1.2** + **Gemini 2.5 Flash**
@@ -119,6 +132,7 @@ mvn spring-boot:run -pl gateway-service
 mvn spring-boot:run -pl user-service
 mvn spring-boot:run -pl order-service
 mvn spring-boot:run -pl agent-service
+mvn spring-boot:run -pl inventory-service
 ```
 
 ### 4. 開啟前端

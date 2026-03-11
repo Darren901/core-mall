@@ -150,17 +150,92 @@ GET /sessions/{id}/stream → sink.asFlux() → SSE 推給 Client
 
 ---
 
-## 8. 微服務拆分原則（從這個專案學到的）
+## 8. Saga Pattern（分散式補償事務）
+
+### 設計
+
+```
+order-service 建單 → inventory-service 扣庫存
+                              ↓ 庫存不足
+                      發補償事件（inventory.INSUFFICIENT）
+                              ↓
+                      order-service 取消訂單（SAGA_CANCELLED）
+```
+
+### 核心學習
+
+- **Saga 是「一連串本地事務 + 補償事務」的組合**，不是分散式事務（沒有 2PC）。
+- **補償事務要冪等**：補償事件可能重送，order-service 用 `processedEvents` 去重。
+- **補償失敗怎麼辦？** 本專案靠 RabbitMQ at-least-once 重試，真實系統需要 Dead Letter Queue（DLQ）+ 人工介入機制。
+
+### 關鍵洞察
+
+> Saga 補償不等於「回滾」，補償本身也是一個「正向的業務操作」，只是語意上是「撤銷前一步」。
+
+---
+
+## 9. 事件類型的語意設計
+
+### 問題
+
+使用者取消訂單 vs Saga 補償取消訂單，都是「取消」，但對下游的影響完全不同：
+
+| 取消類型 | 庫存狀態 | inventory-service 行為 |
+|---|---|---|
+| 使用者取消（ORDER_CANCELLED） | 已扣庫存 | 必須返庫 |
+| Saga 補償（ORDER_SAGA_CANCELLED） | 從未扣庫存 | 不返庫 |
+
+### 解法：不同 EventType
+
+用不同 status（`CANCELLED` vs `SAGA_CANCELLED`）驅動 relay 產生不同 routing key。
+inventory-service 在 **RabbitMQ binding 層**就過濾，consumer 不需要額外判斷。
+
+### 核心學習
+
+- **Event naming 很重要**：`ORDER_CANCELLED` 和 `ORDER_SAGA_CANCELLED` 語意不同，不能共用一個 eventType。
+- **在 binding 層過濾比在 consumer 層判斷更乾淨**：Topic Exchange routing key 是天然的 filter。
+- **業界真實情況更複雜**：電商通常還有 `ORDER_EXPIRED`（超時未付款）、`ORDER_REFUNDED` 等，每種都有獨立的庫存/財務語意。
+
+---
+
+## 10. 電商訂單狀態機設計（學習觀察）
+
+### 真實電商的訂單狀態
+
+```
+CREATED → PAID → WAREHOUSE_CONFIRMED → SHIPPED → DELIVERED → COMPLETED
+    ↓         ↓             ↓
+CANCELLED  REFUNDED    EXCEPTION
+```
+
+### 這個專案的簡化設計
+
+```
+CREATED → UPDATED → CANCELLED（使用者主動）
+                 → SAGA_CANCELLED（庫存不足補償）
+```
+
+### 核心學習
+
+- **鎖庫存 vs 扣庫存**：真實電商是「下單時鎖庫存」、「付款後才真扣」，本專案簡化為建單即扣。
+- **UPDATE 的庫存問題**：本專案 UPDATE 不觸發庫存調整（業務規則：下單後不能改品項）。真實系統需要根據 diff 做差量調整。
+- **部分庫存**：真實系統一筆訂單可能有多品項，部分不足的處理策略（全取消 vs 部分出貨）是業務決策。
+
+---
+
+## 11. 微服務拆分原則（從這個專案學到的）
 
 | 服務 | 職責 | 技術特點 |
 |---|---|---|
 | user-service | 身份認證（JWT 簽發） | BCrypt + JWT + PostgreSQL |
 | order-service | 訂單 CRUD（高吞吐量） | Write-behind + 分散式鎖 + 冪等 + Outbox |
+| inventory-service | 庫存扣減與返還 + Saga 補償消費 | H2 + RabbitMQ Consumer + 冪等 |
 | agent-service | AI 驅動的自然語言操作 | LLM + Function Calling + SSE |
 | gateway-service | 統一入口 + JWT 驗證 | Spring Cloud Gateway + Filter |
 | discovery-service | 服務發現與負載均衡 | Eureka Server |
 
 **關鍵設計決策**：
-- 各服務有獨立 DB（PostgreSQL × 3）→ 避免跨 DB 事務，強制透過 API 通信。
+- 各服務有獨立 DB（PostgreSQL × 3，inventory 用 H2）→ 避免跨 DB 事務，強制透過 API 通信。
 - Shared Redis → 可以跨服務共用快取（未來可拆）。
 - agent-service 透過 WebClient 呼叫 order-service → 同步 HTTP 而非 MQ，因為需要 tool 結果。
+- 完整 Event Map 見 [docs/eventmap.md](eventmap.md)。
