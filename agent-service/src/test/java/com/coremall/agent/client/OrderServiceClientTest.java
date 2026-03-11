@@ -20,6 +20,15 @@ class OrderServiceClientTest {
     private MockWebServer mockWebServer;
     private OrderServiceClient client;
 
+    private static final String ERROR_BODY_404 =
+            "{\"success\":false,\"error\":{\"code\":\"ORDER_NOT_FOUND\",\"message\":\"訂單不存在\",\"details\":[]}}";
+    private static final String ERROR_BODY_500 =
+            "{\"success\":false,\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"系統內部錯誤\",\"details\":[]}}";
+    private static final String ERROR_BODY_422 =
+            "{\"success\":false,\"error\":{\"code\":\"INSUFFICIENT_STOCK\",\"message\":\"庫存不足，無法建立訂單：Apple\",\"details\":[]}}";
+    private static final String ERROR_BODY_503 =
+            "{\"success\":false,\"error\":{\"code\":\"INVENTORY_SERVICE_UNAVAILABLE\",\"message\":\"服務暫時無法使用：inventory-service\",\"details\":[]}}";
+
     @BeforeEach
     void setUp() throws IOException {
         mockWebServer = new MockWebServer();
@@ -35,14 +44,14 @@ class OrderServiceClientTest {
         mockWebServer.shutdown();
     }
 
+    // ─── createOrder ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("createOrder：422 回應 → 例外訊息應為 error.message，不含原始 HTTP 狀態字串")
+    @DisplayName("createOrder：422 → 例外訊息為 error.message，不含 HTTP 狀態字串")
     void shouldThrowFriendlyMessageOn422() {
         mockWebServer.enqueue(new MockResponse()
-                .setResponseCode(422)
-                .addHeader("Content-Type", "application/json")
-                .setBody("{\"success\":false,\"error\":{\"code\":\"INSUFFICIENT_STOCK\"," +
-                        "\"message\":\"庫存不足，無法建立訂單：Apple\",\"details\":[]}}"));
+                .setResponseCode(422).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_422));
 
         assertThatThrownBy(() -> client.createOrder("user-1", "Apple", 5, "idem-key"))
                 .isInstanceOf(RuntimeException.class)
@@ -51,13 +60,11 @@ class OrderServiceClientTest {
     }
 
     @Test
-    @DisplayName("createOrder：503 回應 → 例外訊息應為 error.message，不含原始 HTTP 狀態字串")
+    @DisplayName("createOrder：503 → 例外訊息為 error.message，不含 HTTP 狀態字串")
     void shouldThrowFriendlyMessageOn503() {
         mockWebServer.enqueue(new MockResponse()
-                .setResponseCode(503)
-                .addHeader("Content-Type", "application/json")
-                .setBody("{\"success\":false,\"error\":{\"code\":\"INVENTORY_SERVICE_UNAVAILABLE\"," +
-                        "\"message\":\"服務暫時無法使用：inventory-service\",\"details\":[]}}"));
+                .setResponseCode(503).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_503));
 
         assertThatThrownBy(() -> client.createOrder("user-1", "Apple", 5, "idem-key"))
                 .isInstanceOf(RuntimeException.class)
@@ -68,15 +75,104 @@ class OrderServiceClientTest {
     @Test
     @DisplayName("createOrder：200 → 正常回傳 OrderResult")
     void shouldReturnOrderResultOnSuccess() {
-        mockWebServer.enqueue(new MockResponse()
-                .setResponseCode(200)
-                .addHeader("Content-Type", "application/json")
-                .setBody("{\"success\":true,\"data\":{\"id\":\"order-123\",\"userId\":\"user-1\"," +
-                        "\"productName\":\"Apple\",\"quantity\":5,\"status\":\"CREATED\"," +
-                        "\"createdAt\":\"2025-01-01T00:00:00Z\"}}"));
+        mockWebServer.enqueue(successOrder("order-123"));
 
         OrderResult result = client.createOrder("user-1", "Apple", 5, "idem-key");
 
         assertThat(result.id()).isEqualTo("order-123");
+    }
+
+    // ─── updateOrder ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("updateOrder：404 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenUpdateOrderNotFound() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(404).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_404));
+
+        assertThatThrownBy(() -> client.updateOrder("order-xxx", "Apple", 5, "idem-key"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("訂單不存在")
+                .hasMessageNotContaining("404 Not Found");
+    }
+
+    @Test
+    @DisplayName("updateOrder：500 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenUpdateOrderFails() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(500).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_500));
+
+        assertThatThrownBy(() -> client.updateOrder("order-xxx", "Apple", 5, "idem-key"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("系統內部錯誤")
+                .hasMessageNotContaining("500 Internal Server Error");
+    }
+
+    // ─── cancelOrder ──────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("cancelOrder：404 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenCancelOrderNotFound() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(404).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_404));
+
+        assertThatThrownBy(() -> client.cancelOrder("order-xxx", "idem-key"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("訂單不存在")
+                .hasMessageNotContaining("404 Not Found");
+    }
+
+    @Test
+    @DisplayName("cancelOrder：500 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenCancelOrderFails() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(500).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_500));
+
+        assertThatThrownBy(() -> client.cancelOrder("order-xxx", "idem-key"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("系統內部錯誤")
+                .hasMessageNotContaining("500 Internal Server Error");
+    }
+
+    // ─── getOrder ─────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getOrder：404 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenGetOrderNotFound() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(404).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_404));
+
+        assertThatThrownBy(() -> client.getOrder("order-xxx"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("訂單不存在")
+                .hasMessageNotContaining("404 Not Found");
+    }
+
+    @Test
+    @DisplayName("getOrder：500 → 例外訊息為 error.message，不含 HTTP 狀態字串")
+    void shouldThrowFriendlyMessageWhenGetOrderFails() {
+        mockWebServer.enqueue(new MockResponse()
+                .setResponseCode(500).addHeader("Content-Type", "application/json")
+                .setBody(ERROR_BODY_500));
+
+        assertThatThrownBy(() -> client.getOrder("order-xxx"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("系統內部錯誤")
+                .hasMessageNotContaining("500 Internal Server Error");
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────────────────
+
+    private MockResponse successOrder(String orderId) {
+        return new MockResponse()
+                .setResponseCode(200).addHeader("Content-Type", "application/json")
+                .setBody("{\"success\":true,\"data\":{\"id\":\"" + orderId + "\",\"userId\":\"user-1\"," +
+                        "\"productName\":\"Apple\",\"quantity\":5,\"status\":\"CREATED\"," +
+                        "\"createdAt\":\"2025-01-01T00:00:00Z\"}}");
     }
 }

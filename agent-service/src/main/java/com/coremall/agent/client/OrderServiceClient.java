@@ -5,12 +5,17 @@ import com.coremall.sharedkernel.response.ApiResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * 封裝對 order-service 的 HTTP 呼叫，方便單元測試 mock。
+ * 所有方法均透過 onStatus() 將 error body 中的 error.message 轉換為例外訊息，
+ * 避免 WebClientResponseException 洩漏原始 HTTP 狀態字串與 URL。
  */
 @Component
 public class OrderServiceClient {
@@ -27,9 +32,7 @@ public class OrderServiceClient {
                 .header("X-Idempotency-Key", idempotencyKey)
                 .bodyValue(Map.of("userId", userId, "productName", productName, "quantity", quantity))
                 .retrieve()
-                .onStatus(HttpStatusCode::isError, resp ->
-                        resp.bodyToMono(new ParameterizedTypeReference<ApiResponse<Void>>() {})
-                                .map(api -> new RuntimeException(api.error().message())))
+                .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
                 .block();
@@ -42,6 +45,7 @@ public class OrderServiceClient {
                 .bodyValue(Map.of("productName", productName != null ? productName : "",
                         "quantity", quantity != null ? quantity : 0))
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
                 .block();
@@ -52,6 +56,7 @@ public class OrderServiceClient {
                 .uri("/internal/v1/orders/{orderId}", orderId)
                 .header("X-Idempotency-Key", idempotencyKey)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .toBodilessEntity()
                 .block();
     }
@@ -60,8 +65,18 @@ public class OrderServiceClient {
         return webClient.get()
                 .uri("/internal/v1/orders/{orderId}", orderId)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
                 .block();
+    }
+
+    /**
+     * 將 4xx/5xx response 的 error.message 萃取為 RuntimeException，
+     * 取代預設含 URL 的 WebClientResponseException 訊息。
+     */
+    private Function<ClientResponse, Mono<? extends Throwable>> toFriendlyError() {
+        return resp -> resp.bodyToMono(new ParameterizedTypeReference<ApiResponse<Void>>() {})
+                .map(api -> new RuntimeException(api.error().message()));
     }
 }
