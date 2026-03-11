@@ -3,6 +3,7 @@ package com.coremall.agent.client;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.sharedkernel.response.ApiResponse;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -26,6 +27,9 @@ public class OrderServiceClient {
                 .header("X-Idempotency-Key", idempotencyKey)
                 .bodyValue(Map.of("userId", userId, "productName", productName, "quantity", quantity))
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, resp ->
+                        resp.bodyToMono(new ParameterizedTypeReference<ApiResponse<Void>>() {})
+                                .map(api -> new RuntimeException(api.error().message())))
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
                 .block();

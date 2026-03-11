@@ -1,5 +1,6 @@
 package com.coremall.order.service;
 
+import com.coremall.order.client.InventoryClient;
 import com.coremall.order.config.RedisConfig;
 import com.coremall.order.dto.CreateOrderRequest;
 import com.coremall.order.dto.OrderResponse;
@@ -30,15 +31,18 @@ public class OrderCommandService {
     private final ObjectMapper objectMapper;
     private final OrderRepository orderRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final InventoryClient inventoryClient;
 
     public OrderCommandService(StringRedisTemplate redisTemplate,
                                ObjectMapper objectMapper,
                                OrderRepository orderRepository,
-                               OutboxEventRepository outboxEventRepository) {
+                               OutboxEventRepository outboxEventRepository,
+                               InventoryClient inventoryClient) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.orderRepository = orderRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.inventoryClient = inventoryClient;
     }
 
     /**
@@ -55,12 +59,15 @@ public class OrderCommandService {
             return cached;
         }
 
-        // 2. 分散式鎖
+        // 2. 庫存預檢（同步呼叫 inventory-service，不足即拋例外）
+        inventoryClient.checkStock(request.productName(), request.quantity());
+
+        // 3. 分散式鎖
         String lockKey = RedisConfig.LOCK_KEY_PREFIX + "create:" + request.userId();
         acquireLockOrThrow(lockKey);
         log.debug("[Order] createOrder lock acquired: key={}", lockKey);
         try {
-            // 3. 建立訂單並寫入 Redis
+            // 4. 建立訂單並寫入 Redis
             OrderResponse order = new OrderResponse(
                     UUID.randomUUID().toString(),
                     request.userId(),

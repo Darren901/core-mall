@@ -1,11 +1,14 @@
 package com.coremall.order.service;
 
+import com.coremall.order.client.InventoryClient;
 import com.coremall.order.config.RedisConfig;
 import com.coremall.order.dto.CreateOrderRequest;
 import com.coremall.order.dto.OrderResponse;
 import com.coremall.order.dto.UpdateOrderRequest;
+import com.coremall.order.exception.InsufficientStockException;
 import com.coremall.order.exception.LockConflictException;
 import com.coremall.order.exception.OrderNotFoundException;
+import com.coremall.order.exception.ServiceUnavailableException;
 import com.coremall.order.jpa.entity.Order;
 import com.coremall.order.jpa.entity.OrderStatus;
 import com.coremall.order.jpa.entity.OutboxEvent;
@@ -47,6 +50,8 @@ import static org.mockito.Mockito.when;
 @DisplayName("OrderCommandService - 冪等與鎖邏輯")
 class OrderCommandServiceTest {
 
+    @Mock
+    private InventoryClient inventoryClient;
     @Mock
     private StringRedisTemplate redisTemplate;
     @Mock
@@ -116,6 +121,34 @@ class OrderCommandServiceTest {
         verify(valueOps).set(startsWith(RedisConfig.ORDER_KEY_PREFIX), anyString(), eq(RedisConfig.ORDER_TTL));
         verify(valueOps).set(startsWith(RedisConfig.IDEM_KEY_PREFIX), anyString(), eq(RedisConfig.IDEM_TTL));
         verify(setOps).add(eq(RedisConfig.PENDING_RELAY_KEY), anyString());
+    }
+
+    @Test
+    @DisplayName("createOrder：庫存不足時拋出 InsufficientStockException，不寫 Redis")
+    void shouldThrowInsufficientStockWhenInventoryNotEnough() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        org.mockito.Mockito.doThrow(new InsufficientStockException("Apple"))
+                .when(inventoryClient).checkStock(anyString(), any(Integer.class));
+
+        assertThatThrownBy(() ->
+                service.createOrder(new CreateOrderRequest("u1", "Apple", 3), "idem-inv-001"))
+                .isInstanceOf(InsufficientStockException.class);
+
+        verify(valueOps, never()).set(startsWith(RedisConfig.ORDER_KEY_PREFIX), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("createOrder：inventory-service 不可用時拋出 ServiceUnavailableException，不寫 Redis")
+    void shouldThrowServiceUnavailableWhenInventoryDown() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        org.mockito.Mockito.doThrow(new ServiceUnavailableException("inventory-service"))
+                .when(inventoryClient).checkStock(anyString(), any(Integer.class));
+
+        assertThatThrownBy(() ->
+                service.createOrder(new CreateOrderRequest("u1", "Apple", 3), "idem-inv-002"))
+                .isInstanceOf(ServiceUnavailableException.class);
+
+        verify(valueOps, never()).set(startsWith(RedisConfig.ORDER_KEY_PREFIX), anyString(), any(Duration.class));
     }
 
     @Test

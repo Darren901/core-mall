@@ -1,5 +1,6 @@
 package com.coremall.order.integration;
 
+import com.coremall.order.client.InventoryClient;
 import com.coremall.order.dto.CreateOrderRequest;
 import com.coremall.order.jpa.repository.OrderRepository;
 import com.coremall.order.jpa.repository.OutboxEventRepository;
@@ -51,6 +52,10 @@ class OrderIntegrationTest {
     /** 停用 RabbitTemplate（application-test.yml 已排除 RabbitAutoConfiguration） */
     @MockBean
     private RabbitTemplate rabbitTemplate;
+
+    /** 停用 InventoryClient（整合測試不啟動 inventory-service） */
+    @MockBean
+    private InventoryClient inventoryClient;
 
     @Autowired
     private MockMvc mockMvc;

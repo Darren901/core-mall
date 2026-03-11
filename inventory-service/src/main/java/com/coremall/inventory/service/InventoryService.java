@@ -1,6 +1,7 @@
 package com.coremall.inventory.service;
 
 import com.coremall.inventory.config.RabbitMQConfig;
+import com.coremall.inventory.dto.InventoryResponse;
 import com.coremall.inventory.dto.InsufficientStockEvent;
 import com.coremall.inventory.jpa.entity.Inventory;
 import com.coremall.inventory.jpa.repository.InventoryRepository;
@@ -24,6 +25,11 @@ public class InventoryService {
     public InventoryService(InventoryRepository inventoryRepository, RabbitTemplate rabbitTemplate) {
         this.inventoryRepository = inventoryRepository;
         this.rabbitTemplate = rabbitTemplate;
+    }
+
+    public Optional<InventoryResponse> getStock(String productName) {
+        return inventoryRepository.findById(productName)
+                .map(inv -> new InventoryResponse(inv.getProductName(), inv.getQuantity()));
     }
 
     @Transactional
