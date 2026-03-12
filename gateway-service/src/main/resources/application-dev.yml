@@ -17,10 +17,21 @@ spring:
             - Path=/api/v1/agent/**
           filters:
             - JwtAuth
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://localhost:9411}
 
 jwt:
   secret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LWtleS1tdXN0LWJlLWF0LWxlYXN0LTMy}
   expiration: ${JWT_EXPIRATION:24h}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
 
 eureka:
   client:

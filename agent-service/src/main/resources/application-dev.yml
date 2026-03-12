@@ -37,6 +37,19 @@ spring:
           redis:
             index-name: coremall-chat-memory
             key-prefix: "chat-memory:"
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://localhost:9411}
+  reactor:
+    context-propagation: auto
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
 
 order-service:
   base-url: http://localhost:8082

@@ -4,6 +4,8 @@ import com.coremall.agent.client.OrderServiceClient;
 import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.agent.service.AsyncStepService;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -33,15 +35,18 @@ public class OrderAgentTools {
     private final StringRedisTemplate redisTemplate;
     private final AsyncStepService asyncStepService;
     private final ApplicationEventPublisher publisher;
+    private final Tracer tracer;
 
     public OrderAgentTools(OrderServiceClient orderServiceClient,
                            StringRedisTemplate redisTemplate,
                            AsyncStepService asyncStepService,
-                           ApplicationEventPublisher publisher) {
+                           ApplicationEventPublisher publisher,
+                           Tracer tracer) {
         this.orderServiceClient = orderServiceClient;
         this.redisTemplate = redisTemplate;
         this.asyncStepService = asyncStepService;
         this.publisher = publisher;
+        this.tracer = tracer;
     }
 
     @Tool(description = "建立新訂單，回傳訂單 ID。")
@@ -62,7 +67,11 @@ public class OrderAgentTools {
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
-        try {
+        Span span = tracer.nextSpan()
+                .name("agent.tool.createOrder")
+                .tag("runId", runId != null ? runId : "")
+                .start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             String idemKey = runId + "-" + tool + "-" + userId;
             OrderResult result = orderServiceClient.createOrder(userId, productName, quantity, idemKey);
             String response = "訂單已建立，ID: " + result.id();
@@ -79,6 +88,8 @@ public class OrderAgentTools {
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
             return error;
+        } finally {
+            span.end();
         }
     }
 
@@ -100,7 +111,11 @@ public class OrderAgentTools {
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
-        try {
+        Span span = tracer.nextSpan()
+                .name("agent.tool.updateOrder")
+                .tag("runId", runId != null ? runId : "")
+                .start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             String idemKey = runId + "-" + tool + "-" + orderId;
             OrderResult result = orderServiceClient.updateOrder(orderId, productName, quantity, idemKey);
             String response = "訂單已更新，ID: " + result.id() + "，數量: " + result.quantity();
@@ -115,6 +130,8 @@ public class OrderAgentTools {
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
+        } finally {
+            span.end();
         }
     }
 
@@ -134,7 +151,11 @@ public class OrderAgentTools {
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
-        try {
+        Span span = tracer.nextSpan()
+                .name("agent.tool.cancelOrder")
+                .tag("runId", runId != null ? runId : "")
+                .start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             String idemKey = runId + "-" + tool + "-" + orderId;
             orderServiceClient.cancelOrder(orderId, idemKey);
             String response = "訂單 " + orderId + " 已取消";
@@ -149,6 +170,8 @@ public class OrderAgentTools {
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
+        } finally {
+            span.end();
         }
     }
 
@@ -168,7 +191,11 @@ public class OrderAgentTools {
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
-        try {
+        Span span = tracer.nextSpan()
+                .name("agent.tool.getOrderStatus")
+                .tag("runId", runId != null ? runId : "")
+                .start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             OrderResult result = orderServiceClient.getOrder(orderId);
             String response = String.format("訂單 %s 狀態：%s，商品：%s，數量：%d",
                     result.id(), result.status(), result.productName(), result.quantity());
@@ -183,6 +210,8 @@ public class OrderAgentTools {
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
+        } finally {
+            span.end();
         }
     }
 

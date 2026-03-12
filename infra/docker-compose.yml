@@ -80,6 +80,17 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: coremall-zipkin
+    ports:
+      - "9411:9411"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9411/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   user_postgres_data:
   order_postgres_data:

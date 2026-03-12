@@ -27,6 +27,15 @@ spring:
       enabled: true
       path: /h2-console
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
 eureka:
   client:
     serviceUrl:

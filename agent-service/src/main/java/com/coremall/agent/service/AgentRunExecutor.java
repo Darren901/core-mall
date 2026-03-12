@@ -5,6 +5,8 @@ import com.coremall.agent.tool.AgentRunContext;
 import com.coremall.agent.tool.OrderAgentTools;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -32,23 +34,31 @@ public class AgentRunExecutor {
     private final AgentRunRepository agentRunRepository;
     private final AgentSinkRegistry sinkRegistry;
     private final ObjectMapper objectMapper;
+    private final Tracer tracer;
 
     public AgentRunExecutor(ChatClient chatClient,
                             OrderAgentTools orderAgentTools,
                             AgentRunRepository agentRunRepository,
                             AgentSinkRegistry sinkRegistry,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            Tracer tracer) {
         this.chatClient = chatClient;
         this.orderAgentTools = orderAgentTools;
         this.agentRunRepository = agentRunRepository;
         this.sinkRegistry = sinkRegistry;
         this.objectMapper = objectMapper;
+        this.tracer = tracer;
     }
 
     @Async("stepAsyncExecutor")
     public void execute(String runId, String userId, String userMessage) {
-        AgentRunContext.set(runId);
-        try {
+        Span span = tracer.nextSpan()
+                .name("agent.run")
+                .tag("runId", runId)
+                .tag("userId", userId)
+                .start();
+        try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
+            AgentRunContext.set(runId);
             log.info("[AgentRun] Executing runId={} userId={}", runId, userId);
             String reply = chatClient.prompt()
                     .user(userMessage)
@@ -86,6 +96,7 @@ public class AgentRunExecutor {
                 sink.tryEmitComplete();
             }
         } finally {
+            span.end();
             AgentRunContext.clear();
         }
     }

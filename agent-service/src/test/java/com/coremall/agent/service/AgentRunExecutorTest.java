@@ -5,6 +5,8 @@ import com.coremall.agent.jpa.repository.AgentRunRepository;
 import com.coremall.agent.tool.AgentRunContext;
 import com.coremall.agent.tool.OrderAgentTools;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Spy;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +42,15 @@ class AgentRunExecutorTest {
     @Mock
     private AgentRunRepository agentRunRepository;
 
+    @Mock
+    private Tracer tracer;
+
+    @Mock
+    private Span mockSpan;
+
+    @Mock
+    private Tracer.SpanInScope mockScope;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -47,8 +59,14 @@ class AgentRunExecutorTest {
 
     @BeforeEach
     void setUp() {
+        when(tracer.nextSpan()).thenReturn(mockSpan);
+        when(mockSpan.name(anyString())).thenReturn(mockSpan);
+        when(mockSpan.tag(anyString(), anyString())).thenReturn(mockSpan);
+        when(mockSpan.start()).thenReturn(mockSpan);
+        when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
+
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClient, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper);
+        executor = new AgentRunExecutor(chatClient, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
     }
 
     @Test

@@ -3,6 +3,8 @@ package com.coremall.agent.tool;
 import com.coremall.agent.client.OrderServiceClient;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.agent.service.AsyncStepService;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +45,15 @@ class OrderAgentToolsTest {
     @Mock
     private ApplicationEventPublisher publisher;
 
+    @Mock
+    private Tracer tracer;
+
+    @Mock
+    private Span mockSpan;
+
+    @Mock
+    private Tracer.SpanInScope mockScope;
+
     @InjectMocks
     private OrderAgentTools orderAgentTools;
 
@@ -49,6 +61,12 @@ class OrderAgentToolsTest {
     void setUp() {
         AgentRunContext.set("test-run-id");
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        // 使用 lenient：cache-hit 測試提前返回，不會觸發 span 建立
+        lenient().when(tracer.nextSpan()).thenReturn(mockSpan);
+        lenient().when(mockSpan.name(anyString())).thenReturn(mockSpan);
+        lenient().when(mockSpan.tag(anyString(), any())).thenReturn(mockSpan);
+        lenient().when(mockSpan.start()).thenReturn(mockSpan);
+        lenient().when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
     }
 
     @AfterEach
