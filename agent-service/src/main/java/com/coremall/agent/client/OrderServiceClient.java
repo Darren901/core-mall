@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -32,6 +33,7 @@ public class OrderServiceClient {
     private final ObjectMapper objectMapper;
     private final Retry retryPolicy;
 
+    @Autowired
     public OrderServiceClient(WebClient orderServiceWebClient, ObjectMapper objectMapper) {
         this(orderServiceWebClient, objectMapper, defaultRetryPolicy());
     }
