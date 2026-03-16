@@ -882,6 +882,52 @@
       text-transform: uppercase;
     }
 
+    .model-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .model-selector-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-right: 2px;
+    }
+
+    .model-btn {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border: 1px solid var(--border-dim);
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: var(--radius);
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+
+    .model-btn:hover {
+      border-color: var(--border-bright);
+      color: var(--text-primary);
+    }
+
+    .model-btn.active[data-model="google"] {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: var(--cyan-dim);
+    }
+
+    .model-btn.active[data-model="anthropic"] {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: var(--gold-dim);
+    }
+
     /* ── CURSOR / TYPEWRITER ──────────────────────────────── */
     .cursor-blink {
       display: inline-block;
@@ -1084,6 +1130,11 @@
       </div>
 
       <div class="input-area">
+        <div class="model-selector">
+          <span class="model-selector-label">Model</span>
+          <button class="model-btn active" data-model="google" onclick="selectModel('google')">Gemini 2.5 Flash</button>
+          <button class="model-btn" data-model="anthropic" onclick="selectModel('anthropic')">Claude Haiku 4.5</button>
+        </div>
         <div class="input-shell">
           <textarea
             class="chat-textarea"
@@ -1113,10 +1164,18 @@
 'use strict';
 
 // ── State ─────────────────────────────────────────────────
-let authToken  = localStorage.getItem('cm_token') || null;
-let authUserId = localStorage.getItem('cm_uid')   || null;
-let sending    = false;
+let authToken    = localStorage.getItem('cm_token') || null;
+let authUserId   = localStorage.getItem('cm_uid')   || null;
+let sending      = false;
 let imeComposing = false;
+let selectedModel = 'google';
+
+function selectModel(model) {
+  selectedModel = model;
+  document.querySelectorAll('.model-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.model === model);
+  });
+}
 
 // stepMaps[agentMsgId] = { toolName -> stepElementId }
 const stepMaps = {};
@@ -1299,7 +1358,7 @@ async function sendMessage() {
   appendAgentShell(agentId);
 
   try {
-    const res  = await authPost('/api/v1/agent/chat', { message: msg });
+    const res  = await authPost('/api/v1/agent/chat', { message: msg, model: selectedModel });
 
     if (res.status === 401) { doLogout(); return; }
 

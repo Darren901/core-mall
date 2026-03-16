@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.retry.NonTransientAiException;
+import org.springframework.ai.retry.TransientAiException;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -92,7 +94,7 @@ public class AgentRunExecutor {
             if (sink != null) {
                 sink.tryEmitNext(ServerSentEvent.<String>builder()
                         .event("run-failed")
-                        .data(toJson(Map.of("error", e.getMessage() != null ? e.getMessage() : "Unknown error")))
+                        .data(toJson(Map.of("error", toFriendlyError(e))))
                         .build());
                 sink.tryEmitComplete();
             }
@@ -100,6 +102,26 @@ public class AgentRunExecutor {
             span.end();
             AgentRunContext.clear();
         }
+    }
+
+    private String toFriendlyError(Exception e) {
+        String msg = e.getMessage() != null ? e.getMessage() : "";
+        if (e instanceof NonTransientAiException) {
+            if (msg.contains("credit balance") || msg.contains("billing")) {
+                return "AI 模型服務授權失敗，請聯絡管理員";
+            }
+            if (msg.contains("401") || msg.contains("invalid_api_key")) {
+                return "AI 模型 API 金鑰無效，請聯絡管理員";
+            }
+            return "AI 模型請求失敗，請稍後再試";
+        }
+        if (e instanceof TransientAiException) {
+            if (msg.contains("429")) {
+                return "AI 模型請求過於頻繁，請稍後再試";
+            }
+            return "AI 模型服務暫時不可用，請稍後再試";
+        }
+        return "Agent 執行失敗，請稍後再試";
     }
 
     private String toJson(Map<String, String> payload) {

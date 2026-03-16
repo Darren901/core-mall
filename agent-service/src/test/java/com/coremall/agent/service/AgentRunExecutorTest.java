@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.retry.NonTransientAiException;
+import org.springframework.ai.retry.TransientAiException;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
@@ -220,7 +222,7 @@ class AgentRunExecutorTest {
     }
 
     @Test
-    @DisplayName("execute 失敗：exception.getMessage() 為 null 時推送預設錯誤訊息")
+    @DisplayName("execute 失敗：exception.getMessage() 為 null 時推送友善錯誤訊息")
     void shouldHandleNullExceptionMessage() {
         String runId = UUID.randomUUID().toString();
         AgentRun run = AgentRun.create("查詢訂單");
@@ -236,7 +238,101 @@ class AgentRunExecutorTest {
         StepVerifier.create(sink.asFlux().take(1))
                 .assertNext(sse -> {
                     assertThat(sse.event()).isEqualTo("run-failed");
-                    assertThat(sse.data()).contains("Unknown error");
+                    assertThat(sse.data()).contains("Agent 執行失敗");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：NonTransientAiException 含 credit balance → 回傳授權失敗友善訊息")
+    void shouldReturnFriendlyMessageForBillingError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("建立訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new NonTransientAiException(
+                        "HTTP 400 - {\"type\":\"error\",\"error\":{\"message\":\"Your credit balance is too low\"}}"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "建立訂單", "anthropic");
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("AI 模型服務授權失敗");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：NonTransientAiException 含 invalid_api_key → 回傳 API 金鑰無效友善訊息")
+    void shouldReturnFriendlyMessageForAuthError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("查詢訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new NonTransientAiException("HTTP 401 - {\"error\":{\"type\":\"invalid_api_key\"}}"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "查詢訂單", "anthropic");
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("AI 模型 API 金鑰無效");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：TransientAiException 含 429 → 回傳請求過頻友善訊息")
+    void shouldReturnFriendlyMessageForRateLimitError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("查詢訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new TransientAiException("HTTP 429 - Too Many Requests"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "查詢訂單", "google");
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("AI 模型請求過於頻繁");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：一般 RuntimeException → 不洩漏原始訊息，回傳通用友善訊息")
+    void shouldNotLeakRawMessageForGenericError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("建立訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new RuntimeException("internal stack trace detail: com.internal.SomeClass"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "建立訂單", null);
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("Agent 執行失敗");
+                    assertThat(sse.data()).doesNotContain("internal stack trace detail");
                 })
                 .thenCancel()
                 .verify();
