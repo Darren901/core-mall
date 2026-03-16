@@ -3,6 +3,8 @@ package com.coremall.agent.tool;
 import com.coremall.agent.client.OrderServiceClient;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.agent.service.AsyncStepService;
+import com.coremall.sharedkernel.exception.ServiceBusinessException;
+import com.coremall.sharedkernel.exception.ServiceTransientException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.junit.jupiter.api.AfterEach;
@@ -223,5 +225,58 @@ class OrderAgentToolsTest {
         String response = orderAgentTools.getOrderStatus("order-99");
 
         assertThat(response).contains("失敗").contains("Order not found");
+    }
+
+    // ─── 錯誤前綴（TRANSIENT_ERROR / BUSINESS_ERROR）─────────────────────────
+
+    @Test
+    @DisplayName("ServiceTransientException → 回傳 TRANSIENT_ERROR| 前綴")
+    void shouldReturnTransientErrorPrefixOnServiceTransientException() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(orderServiceClient.createOrder(anyString(), anyString(), anyInt(), anyString()))
+                .thenThrow(new ServiceTransientException("服務暫時無法使用"));
+
+        String response = orderAgentTools.createOrder("user-1", "Apple", 5);
+
+        assertThat(response).startsWith("TRANSIENT_ERROR|");
+        assertThat(response).contains("服務暫時無法使用");
+    }
+
+    @Test
+    @DisplayName("ServiceBusinessException → 回傳 BUSINESS_ERROR| 前綴")
+    void shouldReturnBusinessErrorPrefixOnServiceBusinessException() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(orderServiceClient.createOrder(anyString(), anyString(), anyInt(), anyString()))
+                .thenThrow(new ServiceBusinessException("庫存不足"));
+
+        String response = orderAgentTools.createOrder("user-1", "Apple", 5);
+
+        assertThat(response).startsWith("BUSINESS_ERROR|");
+        assertThat(response).contains("庫存不足");
+    }
+
+    @Test
+    @DisplayName("非預期 RuntimeException → 回傳 BUSINESS_ERROR| 前綴")
+    void shouldReturnBusinessErrorPrefixOnGenericException() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(orderServiceClient.getOrder(anyString()))
+                .thenThrow(new RuntimeException("Unknown error"));
+
+        String response = orderAgentTools.getOrderStatus("order-1");
+
+        assertThat(response).startsWith("BUSINESS_ERROR|");
+        assertThat(response).contains("Unknown error");
+    }
+
+    @Test
+    @DisplayName("cancelOrder ServiceTransientException → 回傳 TRANSIENT_ERROR| 前綴")
+    void shouldReturnTransientErrorPrefixOnCancelOrderTransientException() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        org.mockito.Mockito.doThrow(new ServiceTransientException("服務不可用"))
+                .when(orderServiceClient).cancelOrder(anyString(), anyString());
+
+        String response = orderAgentTools.cancelOrder("order-3");
+
+        assertThat(response).startsWith("TRANSIENT_ERROR|");
     }
 }

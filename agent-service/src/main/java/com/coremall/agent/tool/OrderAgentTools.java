@@ -4,6 +4,7 @@ import com.coremall.agent.client.OrderServiceClient;
 import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.agent.service.AsyncStepService;
+import com.coremall.sharedkernel.exception.ServiceTransientException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
@@ -83,7 +84,7 @@ public class OrderAgentTools {
             log.info("[Tool] {} succeeded orderId={}", tool, result.id());
             return response;
         } catch (Exception e) {
-            String error = "訂單建立失敗：" + e.getMessage();
+            String error = errorPrefix(e) + "訂單建立失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
@@ -126,7 +127,7 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = "訂單更新失敗：" + e.getMessage();
+            String error = errorPrefix(e) + "訂單更新失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
@@ -166,7 +167,7 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = "取消訂單失敗：" + e.getMessage();
+            String error = errorPrefix(e) + "取消訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
@@ -206,13 +207,17 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = "查詢訂單失敗：" + e.getMessage();
+            String error = errorPrefix(e) + "查詢訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
         } finally {
             span.end();
         }
+    }
+
+    private String errorPrefix(Throwable e) {
+        return (e instanceof ServiceTransientException) ? "TRANSIENT_ERROR|" : "BUSINESS_ERROR|";
     }
 
     private String stepKey(String toolName, String... params) {
