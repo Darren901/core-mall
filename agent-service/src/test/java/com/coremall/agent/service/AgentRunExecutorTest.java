@@ -8,12 +8,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.junit.jupiter.api.BeforeEach;
-import org.mockito.Spy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Answers;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.codec.ServerSentEvent;
@@ -26,6 +28,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,8 +70,8 @@ class AgentRunExecutorTest {
         when(mockSpan.tag(anyString(), anyString())).thenReturn(mockSpan);
         when(mockSpan.start()).thenReturn(mockSpan);
         when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
-        org.mockito.Mockito.lenient().when(chatClientFactory.getClient(anyString())).thenReturn(chatClient);
-        org.mockito.Mockito.lenient().when(chatClientFactory.getClient(null)).thenReturn(chatClient);
+        lenient().when(chatClientFactory.getClient(anyString())).thenReturn(chatClient);
+        lenient().when(chatClientFactory.getClient(null)).thenReturn(chatClient);
 
         sinkRegistry = new AgentSinkRegistry();
         executor = new AgentRunExecutor(chatClientFactory, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
@@ -168,9 +172,10 @@ class AgentRunExecutorTest {
         assertThat(run.getStatus()).isEqualTo("FAILED");
     }
 
-    @Test
-    @DisplayName("execute：model 為 'google' 時，factory.getClient(\"google\") 被呼叫")
-    void shouldCallFactoryWithGoogleModel() {
+    @ParameterizedTest
+    @ValueSource(strings = {"google", "anthropic"})
+    @DisplayName("execute：依 model 參數呼叫 factory.getClient()")
+    void shouldCallFactoryWithCorrectModel(String model) {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
@@ -178,24 +183,9 @@ class AgentRunExecutorTest {
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, "U001", "test", "google");
+        executor.execute(runId, "U001", "test", model);
 
-        org.mockito.Mockito.verify(chatClientFactory).getClient("google");
-    }
-
-    @Test
-    @DisplayName("execute：model 為 'anthropic' 時，factory.getClient(\"anthropic\") 被呼叫")
-    void shouldCallFactoryWithAnthropicModel() {
-        String runId = UUID.randomUUID().toString();
-        sinkRegistry.register(runId);
-
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
-                .thenReturn("ok");
-        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
-
-        executor.execute(runId, "U001", "test", "anthropic");
-
-        org.mockito.Mockito.verify(chatClientFactory).getClient("anthropic");
+        verify(chatClientFactory).getClient(model);
     }
 
     @Test

@@ -5,6 +5,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.VectorStoreChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -134,7 +135,7 @@ public class SpringAiConfig {
         return buildChatClient(chatModel, chatMemory, vectorStore);
     }
 
-    private ChatClient buildChatClient(org.springframework.ai.chat.model.ChatModel chatModel,
+    private ChatClient buildChatClient(ChatModel chatModel,
                                        ChatMemory chatMemory,
                                        VectorStore vectorStore) {
         return ChatClient.builder(chatModel)
