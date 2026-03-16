@@ -10,6 +10,7 @@ spring:
       - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
       - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
       - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingAutoConfiguration
+      - org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration
   datasource:
     url: jdbc:tc:postgresql:16:///agent_test
     username: test
@@ -25,6 +26,11 @@ spring:
         chat:
           options:
             model: gemini-2.5-flash
+    anthropic:
+      api-key: test-anthropic-key
+      chat:
+        options:
+          model: claude-haiku-4-5-20251001
 
 eureka:
   client:

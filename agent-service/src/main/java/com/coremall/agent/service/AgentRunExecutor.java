@@ -29,20 +29,20 @@ public class AgentRunExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AgentRunExecutor.class);
 
-    private final ChatClient chatClient;
+    private final ChatClientFactory chatClientFactory;
     private final OrderAgentTools orderAgentTools;
     private final AgentRunRepository agentRunRepository;
     private final AgentSinkRegistry sinkRegistry;
     private final ObjectMapper objectMapper;
     private final Tracer tracer;
 
-    public AgentRunExecutor(ChatClient chatClient,
+    public AgentRunExecutor(ChatClientFactory chatClientFactory,
                             OrderAgentTools orderAgentTools,
                             AgentRunRepository agentRunRepository,
                             AgentSinkRegistry sinkRegistry,
                             ObjectMapper objectMapper,
                             Tracer tracer) {
-        this.chatClient = chatClient;
+        this.chatClientFactory = chatClientFactory;
         this.orderAgentTools = orderAgentTools;
         this.agentRunRepository = agentRunRepository;
         this.sinkRegistry = sinkRegistry;
@@ -51,7 +51,7 @@ public class AgentRunExecutor {
     }
 
     @Async("stepAsyncExecutor")
-    public void execute(String runId, String userId, String userMessage) {
+    public void execute(String runId, String userId, String userMessage, String model) {
         Span span = tracer.nextSpan()
                 .name("agent.run")
                 .tag("runId", runId)
@@ -59,7 +59,8 @@ public class AgentRunExecutor {
                 .start();
         try (Tracer.SpanInScope ws = tracer.withSpan(span)) {
             AgentRunContext.set(runId);
-            log.info("[AgentRun] Executing runId={} userId={}", runId, userId);
+            log.info("[AgentRun] Executing runId={} userId={} model={}", runId, userId, model);
+            ChatClient chatClient = chatClientFactory.getClient(model);
             String reply = chatClient.prompt()
                     .user(userMessage)
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId.replace("-", "")))

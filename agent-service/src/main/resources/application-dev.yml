@@ -31,6 +31,11 @@ spring:
           text:
             options:
               model: gemini-embedding-001
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      chat:
+        options:
+          model: claude-haiku-4-5-20251001
     chat:
       memory:
         repository:

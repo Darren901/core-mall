@@ -26,7 +26,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +34,9 @@ class AgentRunExecutorTest {
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient chatClient;
+
+    @Mock
+    private ChatClientFactory chatClientFactory;
 
     @Mock
     private OrderAgentTools orderAgentTools;
@@ -64,9 +66,11 @@ class AgentRunExecutorTest {
         when(mockSpan.tag(anyString(), anyString())).thenReturn(mockSpan);
         when(mockSpan.start()).thenReturn(mockSpan);
         when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
+        org.mockito.Mockito.lenient().when(chatClientFactory.getClient(anyString())).thenReturn(chatClient);
+        org.mockito.Mockito.lenient().when(chatClientFactory.getClient(null)).thenReturn(chatClient);
 
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClient, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
+        executor = new AgentRunExecutor(chatClientFactory, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
     }
 
     @Test
@@ -81,7 +85,7 @@ class AgentRunExecutorTest {
                 .thenReturn("訂單已建立，ID: order-abc");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "建立訂單");
+        executor.execute(runId, "U001", "建立訂單", null);
 
         assertThat(sinkRegistry.get(runId)).isNull();
         StepVerifier.create(sink.asFlux().take(1))
@@ -105,7 +109,7 @@ class AgentRunExecutorTest {
                 .thenThrow(new RuntimeException("LLM timeout"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "建立訂單");
+        executor.execute(runId, "U001", "建立訂單", null);
 
         assertThat(sinkRegistry.get(runId)).isNull();
         StepVerifier.create(sink.asFlux().take(1))
@@ -127,7 +131,7 @@ class AgentRunExecutorTest {
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, "U001", "test");
+        executor.execute(runId, "U001", "test", null);
 
         assertThat(AgentRunContext.get()).isNull();
     }
@@ -143,7 +147,7 @@ class AgentRunExecutorTest {
                 .thenReturn("查詢完成");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "查詢訂單");
+        executor.execute(runId, "U001", "查詢訂單", null);
 
         assertThat(run.getStatus()).isEqualTo("COMPLETED");
     }
@@ -159,9 +163,39 @@ class AgentRunExecutorTest {
                 .thenThrow(new RuntimeException("timeout"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "查詢訂單");
+        executor.execute(runId, "U001", "查詢訂單", null);
 
         assertThat(run.getStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
+    @DisplayName("execute：model 為 'google' 時，factory.getClient(\"google\") 被呼叫")
+    void shouldCallFactoryWithGoogleModel() {
+        String runId = UUID.randomUUID().toString();
+        sinkRegistry.register(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenReturn("ok");
+        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
+
+        executor.execute(runId, "U001", "test", "google");
+
+        org.mockito.Mockito.verify(chatClientFactory).getClient("google");
+    }
+
+    @Test
+    @DisplayName("execute：model 為 'anthropic' 時，factory.getClient(\"anthropic\") 被呼叫")
+    void shouldCallFactoryWithAnthropicModel() {
+        String runId = UUID.randomUUID().toString();
+        sinkRegistry.register(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenReturn("ok");
+        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
+
+        executor.execute(runId, "U001", "test", "anthropic");
+
+        org.mockito.Mockito.verify(chatClientFactory).getClient("anthropic");
     }
 
     @Test
@@ -174,7 +208,7 @@ class AgentRunExecutorTest {
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, "user-with-special-id-123", "test message");
+        executor.execute(runId, "user-with-special-id-123", "test message", null);
 
         assertThat(sinkRegistry.get(runId)).isNull();
     }
@@ -189,7 +223,7 @@ class AgentRunExecutorTest {
                 .thenReturn("查詢完成");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "查詢訂單");
+        executor.execute(runId, "U001", "查詢訂單", null);
 
         assertThat(run.getStatus()).isEqualTo("COMPLETED");
         assertThat(sinkRegistry.get(runId)).isNull();
@@ -207,7 +241,7 @@ class AgentRunExecutorTest {
                 .thenThrow(new RuntimeException((String) null));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
-        executor.execute(runId, "U001", "查詢訂單");
+        executor.execute(runId, "U001", "查詢訂單", null);
 
         StepVerifier.create(sink.asFlux().take(1))
                 .assertNext(sse -> {

@@ -37,7 +37,7 @@ public class AgentChatController {
     public ApiResponse<ChatInitResponse> chat(
             @RequestHeader("X-User-Id") String userId,
             @Valid @RequestBody ChatRequest request) {
-        String runId = agentRunService.startRun(userId, request.message());
+        String runId = agentRunService.startRun(userId, request.message(), request.model());
         return ApiResponse.success(new ChatInitResponse(runId));
     }
 

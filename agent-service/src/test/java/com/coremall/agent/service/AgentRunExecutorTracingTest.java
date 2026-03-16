@@ -32,6 +32,9 @@ class AgentRunExecutorTracingTest {
     private ChatClient chatClient;
 
     @Mock
+    private ChatClientFactory chatClientFactory;
+
+    @Mock
     private OrderAgentTools orderAgentTools;
 
     @Mock
@@ -59,9 +62,10 @@ class AgentRunExecutorTracingTest {
         when(mockSpan.tag(anyString(), anyString())).thenReturn(mockSpan);
         when(mockSpan.start()).thenReturn(mockSpan);
         when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
+        when(chatClientFactory.getClient(any())).thenReturn(chatClient);
 
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClient, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
+        executor = new AgentRunExecutor(chatClientFactory, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
     }
 
     @Test
@@ -75,7 +79,7 @@ class AgentRunExecutorTracingTest {
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, userId, "測試訊息");
+        executor.execute(runId, userId, "測試訊息", null);
 
         verify(mockSpan).name("agent.run");
         verify(mockSpan).tag("runId", runId);
@@ -93,7 +97,7 @@ class AgentRunExecutorTracingTest {
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, "U001", "test");
+        executor.execute(runId, "U001", "test", null);
 
         verify(mockSpan).end();
     }
@@ -108,7 +112,7 @@ class AgentRunExecutorTracingTest {
                 .thenThrow(new RuntimeException("LLM error"));
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
-        executor.execute(runId, "U001", "test");
+        executor.execute(runId, "U001", "test", null);
 
         verify(mockSpan).end();
     }

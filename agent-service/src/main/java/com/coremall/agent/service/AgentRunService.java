@@ -34,14 +34,14 @@ public class AgentRunService {
      *
      * @return runId（即 SSE stream 的訂閱 key）
      */
-    public String startRun(String userId, String userMessage) {
+    public String startRun(String userId, String userMessage, String model) {
         AgentRun run = agentRunRepository.save(AgentRun.create(userMessage));
         String runId = run.getId().toString();
 
         sinkRegistry.register(runId);
-        agentRunExecutor.execute(runId, userId, userMessage);
+        agentRunExecutor.execute(runId, userId, userMessage, model);
 
-        log.info("[AgentRun] Started runId={} userId={}", runId, userId);
+        log.info("[AgentRun] Started runId={} userId={} model={}", runId, userId, model);
         return runId;
     }
 

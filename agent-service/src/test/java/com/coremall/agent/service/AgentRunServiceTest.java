@@ -45,7 +45,7 @@ class AgentRunServiceTest {
         AgentRun savedRun = AgentRun.create("幫我訂5個蘋果");
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        String runId = agentRunService.startRun("U001", "幫我訂5個蘋果");
+        String runId = agentRunService.startRun("U001", "幫我訂5個蘋果", null);
 
         assertThat(runId).isNotNull();
         ArgumentCaptor<AgentRun> captor = ArgumentCaptor.forClass(AgentRun.class);
@@ -60,7 +60,7 @@ class AgentRunServiceTest {
         AgentRun savedRun = AgentRun.create(msg);
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        agentRunService.startRun("U001", msg);
+        agentRunService.startRun("U001", msg, null);
 
         ArgumentCaptor<AgentRun> captor = ArgumentCaptor.forClass(AgentRun.class);
         verify(agentRunRepository).save(captor.capture());
@@ -69,14 +69,25 @@ class AgentRunServiceTest {
     }
 
     @Test
-    @DisplayName("startRun：呼叫 AgentRunExecutor.execute 觸發非同步執行，並傳遞 userId")
-    void shouldDelegateExecutionToAgentRunExecutor() {
+    @DisplayName("startRun：呼叫 AgentRunExecutor.execute 觸發非同步執行，並傳遞 userId 與 model")
+    void shouldDelegateExecutionToAgentRunExecutorWithModel() {
         AgentRun savedRun = AgentRun.create("幫我建立訂單");
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        String runId = agentRunService.startRun("U001", "幫我建立訂單");
+        String runId = agentRunService.startRun("U001", "幫我建立訂單", "anthropic");
 
-        verify(agentRunExecutor).execute(runId, "U001", "幫我建立訂單");
+        verify(agentRunExecutor).execute(runId, "U001", "幫我建立訂單", "anthropic");
+    }
+
+    @Test
+    @DisplayName("startRun：model 為 null 時傳遞 null 給 executor")
+    void shouldPassNullModelToExecutor() {
+        AgentRun savedRun = AgentRun.create("幫我建立訂單");
+        when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
+
+        String runId = agentRunService.startRun("U001", "幫我建立訂單", null);
+
+        verify(agentRunExecutor).execute(runId, "U001", "幫我建立訂單", null);
     }
 
     @Test
@@ -92,11 +103,10 @@ class AgentRunServiceTest {
         AgentRun savedRun = AgentRun.create("test");
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        String runId = agentRunService.startRun("U001", "test");
+        String runId = agentRunService.startRun("U001", "test", null);
         Flux<ServerSentEvent<String>> flux = agentRunService.streamEvents(runId);
 
         assertThat(flux).isNotNull();
-        // close sink so StepVerifier can complete
         sinkRegistry.get(runId).tryEmitComplete();
         StepVerifier.create(flux).verifyComplete();
     }
@@ -106,7 +116,6 @@ class AgentRunServiceTest {
     void shouldSilentlyIgnoreEventForUnknownRunId() {
         AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "SUCCEEDED", "ok");
         agentRunService.onStepEvent(event);
-        // 不應拋出例外
     }
 
     @Test
@@ -114,7 +123,6 @@ class AgentRunServiceTest {
     void shouldHandleNullPayloadInStepEvent() {
         AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "STARTED", null);
         agentRunService.onStepEvent(event);
-        // 不應拋出例外
     }
 
     @Test
@@ -123,7 +131,7 @@ class AgentRunServiceTest {
         AgentRun savedRun = AgentRun.create("test");
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        String runId = agentRunService.startRun("U001", "test");
+        String runId = agentRunService.startRun("U001", "test", null);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
         AgentStepEvent event = new AgentStepEvent(runId, "createOrder", "STARTED", null);
@@ -144,7 +152,7 @@ class AgentRunServiceTest {
         AgentRun savedRun = AgentRun.create("test");
         when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
 
-        String runId = agentRunService.startRun("U001", "test");
+        String runId = agentRunService.startRun("U001", "test", null);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
         AgentStepEvent event = new AgentStepEvent(runId, "createOrder", "SUCCEEDED", "訂單已建立，ID: order-1");
