@@ -64,9 +64,12 @@ class AgentIntegrationTest {
         registry.add("order-service.base-url", () -> "http://mock-order-service:8080"); // won't be called
     }
 
-    /** 停用真實 Gemini 呼叫 */
-    @MockBean
-    private ChatClient chatClient;
+    /** 停用真實 Gemini / Anthropic 呼叫；具名 mock 避免 @MockBean 因多個 ChatClient bean 無法決定替換目標 */
+    @MockBean(name = "geminiChatClient")
+    private ChatClient geminiChatClient;
+
+    @MockBean(name = "anthropicChatClient")
+    private ChatClient anthropicChatClient;
 
     /** 停用真實 order-service 呼叫 */
     @MockBean
@@ -176,7 +179,7 @@ class AgentIntegrationTest {
     private void mockChatClientNoOp() {
         var promptSpec = org.mockito.Mockito.mock(ChatClient.ChatClientRequestSpec.class);
         var callSpec = org.mockito.Mockito.mock(ChatClient.CallResponseSpec.class);
-        when(chatClient.prompt()).thenReturn(promptSpec);
+        when(geminiChatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
         when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
         when(promptSpec.tools(any())).thenReturn(promptSpec);
@@ -189,7 +192,7 @@ class AgentIntegrationTest {
     private void mockChatClientWithToolCall(String userId, String productName, int quantity) {
         var promptSpec = org.mockito.Mockito.mock(ChatClient.ChatClientRequestSpec.class);
         var callSpec = org.mockito.Mockito.mock(ChatClient.CallResponseSpec.class);
-        when(chatClient.prompt()).thenReturn(promptSpec);
+        when(geminiChatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
         when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
 

@@ -15,6 +15,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Answers;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
@@ -309,6 +310,77 @@ class AgentRunExecutorTest {
                 .assertNext(sse -> {
                     assertThat(sse.event()).isEqualTo("run-failed");
                     assertThat(sse.data()).contains("AI 模型請求過於頻繁");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：NonTransientAiException 無特定關鍵字 → 回傳模型請求失敗友善訊息")
+    void shouldReturnFriendlyMessageForGenericNonTransientError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("查詢訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new NonTransientAiException("HTTP 400 - Bad Request"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "查詢訂單", "google");
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("AI 模型請求失敗，請稍後再試");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：TransientAiException 無 429 關鍵字 → 回傳服務暫時不可用友善訊息")
+    void shouldReturnFriendlyMessageForGenericTransientError() {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("查詢訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new TransientAiException("Service temporarily unavailable"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+
+        executor.execute(runId, "U001", "查詢訂單", "anthropic");
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("AI 模型服務暫時不可用，請稍後再試");
+                })
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
+    @DisplayName("execute 失敗：ObjectMapper 序列化失敗時推送 serialization failed fallback")
+    void shouldFallbackWhenSerializationFails() throws Exception {
+        String runId = UUID.randomUUID().toString();
+        AgentRun run = AgentRun.create("查詢訂單");
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any()).call().content())
+                .thenThrow(new RuntimeException("boom"));
+        when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
+        Mockito.doThrow(new com.fasterxml.jackson.core.JsonProcessingException("fail") {})
+                .when(objectMapper).writeValueAsString(any());
+
+        executor.execute(runId, "U001", "查詢訂單", null);
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> {
+                    assertThat(sse.event()).isEqualTo("run-failed");
+                    assertThat(sse.data()).contains("serialization failed");
                 })
                 .thenCancel()
                 .verify();
