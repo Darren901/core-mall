@@ -1,15 +1,12 @@
 package com.coremall.agent.service;
 
-import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.jpa.entity.AgentRun;
 import com.coremall.agent.jpa.repository.AgentRunRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 
 @Service
 public class AgentRunService {
@@ -53,21 +50,4 @@ public class AgentRunService {
         return sinkRegistry.stream(runId);
     }
 
-    /**
-     * 監聽 AgentStepEvent（由 OrderAgentTools 發佈），推送對應的 SSE 事件到 sink。
-     */
-    @EventListener
-    public void onStepEvent(AgentStepEvent event) {
-        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(event.runId());
-        if (sink == null) return;
-
-        String data = String.format("{\"toolName\":\"%s\",\"status\":\"%s\",\"payload\":\"%s\"}",
-                event.toolName(), event.status(),
-                event.payload() != null ? event.payload().replace("\"", "'") : "");
-
-        sink.tryEmitNext(ServerSentEvent.<String>builder()
-                .event("step-" + event.status().toLowerCase())
-                .data(data)
-                .build());
-    }
 }

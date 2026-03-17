@@ -1,6 +1,5 @@
 package com.coremall.agent.service;
 
-import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.jpa.entity.AgentRun;
 import com.coremall.agent.jpa.repository.AgentRunRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,59 +109,4 @@ class AgentRunServiceTest {
         StepVerifier.create(flux).verifyComplete();
     }
 
-    @Test
-    @DisplayName("onStepEvent：runId 不存在 → 靜默忽略，不拋例外")
-    void shouldSilentlyIgnoreEventForUnknownRunId() {
-        AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "SUCCEEDED", "ok");
-        agentRunService.onStepEvent(event);
-    }
-
-    @Test
-    @DisplayName("onStepEvent：payload 為 null → 正常處理不拋例外")
-    void shouldHandleNullPayloadInStepEvent() {
-        AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "STARTED", null);
-        agentRunService.onStepEvent(event);
-    }
-
-    @Test
-    @DisplayName("onStepEvent：sink 存在且 payload 為 null → 成功推送 SSE 事件（payload 欄位為空字串）")
-    void shouldEmitSseEventWithNullPayload() {
-        AgentRun savedRun = AgentRun.create("test");
-        when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
-
-        String runId = agentRunService.startRun("U001", "test", null);
-        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
-
-        AgentStepEvent event = new AgentStepEvent(runId, "createOrder", "STARTED", null);
-        agentRunService.onStepEvent(event);
-
-        StepVerifier.create(sink.asFlux().take(1))
-                .assertNext(sse -> {
-                    assertThat(sse.event()).isEqualTo("step-started");
-                    assertThat(sse.data()).contains("createOrder").doesNotContain("null");
-                })
-                .thenCancel()
-                .verify();
-    }
-
-    @Test
-    @DisplayName("onStepEvent：sink 存在且 payload 非 null → 成功推送 SSE 事件")
-    void shouldEmitSseEventWhenSinkExists() {
-        AgentRun savedRun = AgentRun.create("test");
-        when(agentRunRepository.save(any(AgentRun.class))).thenReturn(savedRun);
-
-        String runId = agentRunService.startRun("U001", "test", null);
-        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
-
-        AgentStepEvent event = new AgentStepEvent(runId, "createOrder", "SUCCEEDED", "訂單已建立，ID: order-1");
-        agentRunService.onStepEvent(event);
-
-        StepVerifier.create(sink.asFlux().take(1))
-                .assertNext(sse -> {
-                    assertThat(sse.event()).isEqualTo("step-succeeded");
-                    assertThat(sse.data()).contains("createOrder").contains("SUCCEEDED");
-                })
-                .thenCancel()
-                .verify();
-    }
 }
