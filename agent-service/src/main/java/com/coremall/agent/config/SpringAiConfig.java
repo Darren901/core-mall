@@ -14,6 +14,7 @@ import org.springframework.ai.vectorstore.redis.RedisVectorStore.MetadataField;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import redis.clients.jedis.JedisPooled;
 
 @Configuration
@@ -127,6 +128,7 @@ public class SpringAiConfig {
             """;
 
     @Bean
+    @Profile("!loadtest")
     public JedisPooled jedisPooled(
             @Value("${spring.data.redis.host:localhost}") String host,
             @Value("${spring.data.redis.port:6379}") int port) {
@@ -134,6 +136,7 @@ public class SpringAiConfig {
     }
 
     @Bean
+    @Profile("!loadtest")
     public VectorStore vectorStore(JedisPooled jedisPooled, EmbeddingModel embeddingModel) {
         return RedisVectorStore.builder(jedisPooled, embeddingModel)
                 .indexName("coremall-ltm")
@@ -147,6 +150,7 @@ public class SpringAiConfig {
     }
 
     @Bean("geminiChatClient")
+    @Profile("!loadtest")
     public ChatClient geminiChatClient(GoogleGenAiChatModel chatModel,
                                        ChatMemory chatMemory,
                                        VectorStore vectorStore) {
@@ -154,6 +158,7 @@ public class SpringAiConfig {
     }
 
     @Bean("anthropicChatClient")
+    @Profile("!loadtest")
     public ChatClient anthropicChatClient(AnthropicChatModel chatModel,
                                           ChatMemory chatMemory,
                                           VectorStore vectorStore) {

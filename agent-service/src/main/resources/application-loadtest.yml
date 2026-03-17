@@ -1,0 +1,56 @@
+server:
+  port: 8083
+
+spring:
+  config:
+    import: optional:classpath:application-sensitive.yml
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiTextEmbeddingAutoConfiguration
+      - org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/agent_db}
+    username: ${DB_USERNAME:agent}
+    password: ${DB_PASSWORD:agent}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+  ai:
+    chat:
+      memory:
+        repository:
+          redis:
+            index-name: coremall-chat-memory
+            key-prefix: "chat-memory:"
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://localhost:9411}
+  reactor:
+    context-propagation: auto
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  level:
+    com.coremall.agent: DEBUG
+
+order-service:
+  base-url: http://localhost:8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
