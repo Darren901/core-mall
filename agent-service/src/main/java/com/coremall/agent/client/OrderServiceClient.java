@@ -43,7 +43,7 @@ public class OrderServiceClient {
         this.webClient = orderServiceWebClient;
         this.objectMapper = objectMapper;
         this.retryPolicy = retryPolicy;
-        
+
     }
 
     private static Retry defaultRetryPolicy() {
