@@ -43,6 +43,7 @@ public class OrderServiceClient {
         this.webClient = orderServiceWebClient;
         this.objectMapper = objectMapper;
         this.retryPolicy = retryPolicy;
+        
     }
 
     private static Retry defaultRetryPolicy() {
@@ -62,7 +63,7 @@ public class OrderServiceClient {
                 .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
-                .retryWhen(retrySpec())
+                .retryWhen(retryPolicy)
                 .block();
     }
 
@@ -76,7 +77,7 @@ public class OrderServiceClient {
                 .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
-                .retryWhen(retrySpec())
+                .retryWhen(retryPolicy)
                 .block();
     }
 
@@ -87,7 +88,7 @@ public class OrderServiceClient {
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .toBodilessEntity()
-                .retryWhen(retrySpec())
+                .retryWhen(retryPolicy)
                 .block();
     }
 
@@ -98,7 +99,7 @@ public class OrderServiceClient {
                 .onStatus(HttpStatusCode::isError, toFriendlyError())
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<OrderResult>>() {})
                 .map(ApiResponse::data)
-                .retryWhen(retrySpec())
+                .retryWhen(retryPolicy)
                 .block();
     }
 
@@ -130,11 +131,4 @@ public class OrderServiceClient {
         return "服務暫時無法處理請求，請稍後再試";
     }
 
-    /**
-     * 暫時性錯誤（ServiceTransientException / IOException）最多重試 3 次，exponential backoff。
-     * RetryExhaustedException 展開為原始的 ServiceTransientException，統一拋出語意。
-     */
-    private Retry retrySpec() {
-        return retryPolicy;
-    }
 }
