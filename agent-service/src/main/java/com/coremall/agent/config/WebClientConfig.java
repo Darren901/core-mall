@@ -11,10 +11,20 @@ public class WebClientConfig {
     @Value("${order-service.base-url:http://order-service}")
     private String orderServiceBaseUrl;
 
+    @Value("${inventory-service.base-url:http://inventory-service}")
+    private String inventoryServiceBaseUrl;
+
     @Bean
     public WebClient orderServiceWebClient(WebClient.Builder builder) {
         return builder
                 .baseUrl(orderServiceBaseUrl)
+                .build();
+    }
+
+    @Bean
+    public WebClient inventoryServiceWebClient(WebClient.Builder builder) {
+        return builder
+                .baseUrl(inventoryServiceBaseUrl)
                 .build();
     }
 }

@@ -71,9 +71,12 @@ class AgentIntegrationTest {
     @MockBean(name = "anthropicChatClient")
     private ChatClient anthropicChatClient;
 
-    /** 停用真實 order-service 呼叫 */
+    /** 停用真實 order-service / inventory-service 呼叫 */
     @MockBean
     private com.coremall.agent.client.OrderServiceClient orderServiceClient;
+
+    @MockBean
+    private com.coremall.agent.client.InventoryServiceClient inventoryServiceClient;
 
     /** 停用真實 RedisVectorStore（需 Redis Stack，測試環境用 plain Redis） */
     @MockBean
@@ -97,6 +100,9 @@ class AgentIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private OrderAgentTools orderAgentTools;
 
     @BeforeEach
     void cleanUp() {
@@ -182,12 +188,16 @@ class AgentIntegrationTest {
         when(geminiChatClient.prompt()).thenReturn(promptSpec);
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
         when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
-        when(promptSpec.tools(any())).thenReturn(promptSpec);
+        when(promptSpec.tools(any(), any())).thenReturn(promptSpec);
         when(promptSpec.call()).thenReturn(callSpec);
         when(callSpec.content()).thenReturn("好的，我已幫您完成操作。");
     }
 
-    /** Mock ChatClient 在執行時直接呼叫 createOrder tool（模擬 LLM function call）。 */
+    /**
+     * Mock ChatClient 在執行時直接呼叫 createOrder tool（模擬 LLM function call）。
+     * Multi-agent 架構下，Orchestrator 呼叫 .tools(inventoryAgent, orderAgent)，
+     * 透過 doAnswer 直接呼叫真實 OrderAgentTools 觸發 AgentStep 持久化。
+     */
     @SuppressWarnings("unchecked")
     private void mockChatClientWithToolCall(String userId, String productName, int quantity) {
         var promptSpec = org.mockito.Mockito.mock(ChatClient.ChatClientRequestSpec.class);
@@ -196,16 +206,11 @@ class AgentIntegrationTest {
         when(promptSpec.user(any(String.class))).thenReturn(promptSpec);
         when(promptSpec.advisors(any(java.util.function.Consumer.class))).thenReturn(promptSpec);
 
-        // 當 .tools(orderAgentTools) 被呼叫時，抓取 OrderAgentTools 實例並直接呼叫
+        // Orchestrator 傳入 (inventoryAgent, orderAgent) 兩個工具，模擬 LLM 呼叫 createOrder
         doAnswer(invocation -> {
-            Object[] args = invocation.getArguments();
-            for (Object arg : args) {
-                if (arg instanceof OrderAgentTools tools) {
-                    tools.createOrder(userId, productName, quantity);
-                }
-            }
+            orderAgentTools.createOrder(userId, productName, quantity);
             return promptSpec;
-        }).when(promptSpec).tools(any());
+        }).when(promptSpec).tools(any(), any());
 
         when(promptSpec.call()).thenReturn(callSpec);
         when(callSpec.content()).thenReturn("好的，訂單已建立！");

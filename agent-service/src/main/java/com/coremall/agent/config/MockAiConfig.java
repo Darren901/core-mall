@@ -35,6 +35,20 @@ public class MockAiConfig {
         return buildChatClient(chatMemory);
     }
 
+    @Bean("inventoryAgentChatClient")
+    public ChatClient inventoryAgentChatClient() {
+        return ChatClient.builder(new MockChatModel())
+                .defaultSystem(SYSTEM_PROMPT)
+                .build();
+    }
+
+    @Bean("orderAgentChatClient")
+    public ChatClient orderAgentChatClient() {
+        return ChatClient.builder(new MockChatModel())
+                .defaultSystem(SYSTEM_PROMPT)
+                .build();
+    }
+
     private ChatClient buildChatClient(ChatMemory chatMemory) {
         return ChatClient.builder(new MockChatModel())
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
