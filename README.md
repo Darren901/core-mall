@@ -1,6 +1,6 @@
 # Core Mall — Agent-Driven Commerce Microservices
 
-高併發電商 AI Agent 微服務練習專案，實作企業級後端工程核心技術：Write-Behind、Outbox Pattern、分散式鎖、冪等性控制，以及由 Spring AI 驅動的 AI Agent（Function Calling + SSE Streaming + Hybrid Memory）。
+微服務練習專案。
 
 ---
 
