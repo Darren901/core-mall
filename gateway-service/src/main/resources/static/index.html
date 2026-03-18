@@ -766,6 +766,15 @@
     .chip-succeeded { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
     .chip-failed    { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(251,113,133,0.2); }
 
+    .agent-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      opacity: 0.7;
+      margin-right: 2px;
+    }
+
     .step-payload {
       font-family: var(--font-mono);
       font-size: 10px;
@@ -1440,7 +1449,7 @@ function handleEvent(agentId, type, rawData) {
 
   switch (type) {
     case 'step-started':
-      addStep(agentId, data.toolName);
+      addStep(agentId, data.agentName, data.toolName);
       break;
     case 'step-succeeded':
       completeStep(agentId, data.toolName, 'succeeded', data.payload);
@@ -1487,7 +1496,7 @@ function appendAgentShell(agentId) {
   scrollDown();
 }
 
-function addStep(agentId, toolName) {
+function addStep(agentId, agentName, toolName) {
   const idx    = ++stepCounters[agentId];
   const stepId = `${agentId}-s${idx}`;
   stepMaps[agentId][toolName] = stepId;
@@ -1500,6 +1509,10 @@ function addStep(agentId, toolName) {
   const title = $(`${agentId}-title`);
   if (title) title.textContent = `STEP ${idx}: ${toolName}`;
 
+  const agentBadge = agentName
+    ? `<span class="agent-badge">${esc(agentName)}</span>`
+    : '';
+
   const el = div('step active', `
     <div class="step-track">
       <div class="step-node started" id="${stepId}-node"></div>
@@ -1508,6 +1521,7 @@ function addStep(agentId, toolName) {
     <div class="step-content">
       <div class="step-head">
         <span class="step-index">[${String(idx).padStart(2,'0')}]</span>
+        ${agentBadge}
         <span class="step-name">${esc(toolName)}</span>
         <span class="status-chip chip-started" id="${stepId}-chip">RUNNING</span>
       </div>
