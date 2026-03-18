@@ -1,7 +1,8 @@
 package com.coremall.agent.service;
 
+import com.coremall.agent.agent.InventoryAgent;
+import com.coremall.agent.agent.OrderAgent;
 import com.coremall.agent.jpa.repository.AgentRunRepository;
-import com.coremall.agent.tool.OrderAgentTools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
@@ -15,7 +16,6 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -35,7 +35,10 @@ class AgentRunExecutorTracingTest {
     private ChatClientFactory chatClientFactory;
 
     @Mock
-    private OrderAgentTools orderAgentTools;
+    private InventoryAgent inventoryAgent;
+
+    @Mock
+    private OrderAgent orderAgent;
 
     @Mock
     private AgentRunRepository agentRunRepository;
@@ -65,7 +68,7 @@ class AgentRunExecutorTracingTest {
         when(chatClientFactory.getClient(any())).thenReturn(chatClient);
 
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClientFactory, orderAgentTools, agentRunRepository, sinkRegistry, objectMapper, tracer);
+        executor = new AgentRunExecutor(chatClientFactory, inventoryAgent, orderAgent, agentRunRepository, sinkRegistry, objectMapper, tracer);
     }
 
     @Test
@@ -75,9 +78,8 @@ class AgentRunExecutorTracingTest {
         String userId = "user-001";
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
                 .thenReturn("ok");
-        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
         executor.execute(runId, userId, "測試訊息", null);
 
@@ -93,9 +95,8 @@ class AgentRunExecutorTracingTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
                 .thenReturn("ok");
-        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
         executor.execute(runId, "U001", "test", null);
 
@@ -108,9 +109,8 @@ class AgentRunExecutorTracingTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
                 .thenThrow(new RuntimeException("LLM error"));
-        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
         executor.execute(runId, "U001", "test", null);
 

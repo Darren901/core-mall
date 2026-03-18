@@ -59,6 +59,9 @@ logging:
 order-service:
   base-url: http://localhost:8082
 
+inventory-service:
+  base-url: http://localhost:8084
+
 eureka:
   client:
     service-url:

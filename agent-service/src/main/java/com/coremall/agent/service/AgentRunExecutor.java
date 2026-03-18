@@ -1,8 +1,9 @@
 package com.coremall.agent.service;
 
+import com.coremall.agent.agent.InventoryAgent;
+import com.coremall.agent.agent.OrderAgent;
 import com.coremall.agent.jpa.repository.AgentRunRepository;
 import com.coremall.agent.tool.AgentRunContext;
-import com.coremall.agent.tool.OrderAgentTools;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.tracing.Span;
@@ -32,20 +33,23 @@ public class AgentRunExecutor {
     private static final Logger log = LoggerFactory.getLogger(AgentRunExecutor.class);
 
     private final ChatClientFactory chatClientFactory;
-    private final OrderAgentTools orderAgentTools;
+    private final InventoryAgent inventoryAgent;
+    private final OrderAgent orderAgent;
     private final AgentRunRepository agentRunRepository;
     private final AgentSinkRegistry sinkRegistry;
     private final ObjectMapper objectMapper;
     private final Tracer tracer;
 
     public AgentRunExecutor(ChatClientFactory chatClientFactory,
-                            OrderAgentTools orderAgentTools,
+                            InventoryAgent inventoryAgent,
+                            OrderAgent orderAgent,
                             AgentRunRepository agentRunRepository,
                             AgentSinkRegistry sinkRegistry,
                             ObjectMapper objectMapper,
                             Tracer tracer) {
         this.chatClientFactory = chatClientFactory;
-        this.orderAgentTools = orderAgentTools;
+        this.inventoryAgent = inventoryAgent;
+        this.orderAgent = orderAgent;
         this.agentRunRepository = agentRunRepository;
         this.sinkRegistry = sinkRegistry;
         this.objectMapper = objectMapper;
@@ -66,7 +70,7 @@ public class AgentRunExecutor {
             String reply = chatClient.prompt()
                     .user(userMessage)
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId.replace("-", "")))
-                    .tools(orderAgentTools)
+                    .tools(inventoryAgent, orderAgent)
                     .call()
                     .content();
 
