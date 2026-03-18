@@ -27,7 +27,7 @@ public class InventoryAgent {
         this.inventoryAgentTools = inventoryAgentTools;
     }
 
-    @Tool(description = "查詢指定商品的庫存狀況，回傳庫存數量與是否有貨。")
+    @Tool(name = "askInventoryAgent", description = "查詢指定商品的庫存狀況，回傳庫存數量與是否有貨。")
     public String ask(
             @ToolParam(description = "要查詢庫存的商品名稱") String productName) {
         log.info("[InventoryAgent] ask productName={}", productName);

@@ -28,7 +28,7 @@ public class OrderAgent {
         this.orderAgentTools = orderAgentTools;
     }
 
-    @Tool(description = "執行訂單操作，包含建立、更新、取消、查詢訂單。")
+    @Tool(name = "askOrderAgent", description = "執行訂單操作，包含建立、更新、取消、查詢訂單。")
     public String ask(
             @ToolParam(description = "訂單任務描述，例如：建立 iPhone 15 訂單數量 1、查詢訂單 ORD-123 狀態") String task,
             @ToolParam(description = "客戶 ID（不是管理員 ID）") String userId) {

@@ -110,6 +110,7 @@ public class OrderServiceClient {
      */
     private Function<ClientResponse, Mono<? extends Throwable>> toFriendlyError() {
         return resp -> resp.bodyToMono(String.class)
+                .defaultIfEmpty("")
                 .map(body -> {
                     String message = extractMessage(body);
                     if (resp.statusCode().is5xxServerError()) {
