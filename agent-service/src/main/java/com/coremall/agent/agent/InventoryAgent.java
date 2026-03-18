@@ -1,6 +1,7 @@
 package com.coremall.agent.agent;
 
 import com.coremall.agent.tool.InventoryAgentTools;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -39,7 +40,7 @@ public class InventoryAgent {
                     .content();
         } catch (Exception e) {
             log.warn("[InventoryAgent] ask failed: {}", e.getMessage());
-            return "BUSINESS_ERROR|庫存查詢子代理失敗：" + e.getMessage();
+            return "BUSINESS_ERROR|庫存查詢子代理失敗：" + Objects.toString(e.getMessage(), "未知錯誤");
         }
     }
 }

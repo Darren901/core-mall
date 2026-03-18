@@ -56,15 +56,14 @@ public class OrderAgentTools {
             @ToolParam(description = "商品名稱") String productName,
             @ToolParam(description = "購買數量，必須為正整數") int quantity) {
         String tool = "createOrder";
-        String stepKey = stepKey(tool, userId, productName, String.valueOf(quantity));
+        String runId = AgentRunContext.get();
+        String stepKey = stepKey(runId, tool, userId, productName, String.valueOf(quantity));
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
             log.info("[Tool] {} cache hit key={}", tool, stepKey);
             return cached;
         }
-
-        String runId = AgentRunContext.get();
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
@@ -100,15 +99,14 @@ public class OrderAgentTools {
             @ToolParam(description = "新的商品名稱") String productName,
             @ToolParam(description = "新的購買數量，必須為正整數") int quantity) {
         String tool = "updateOrder";
-        String stepKey = stepKey(tool, orderId, productName, String.valueOf(quantity));
+        String runId = AgentRunContext.get();
+        String stepKey = stepKey(runId, tool, orderId, productName, String.valueOf(quantity));
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
             log.info("[Tool] {} cache hit key={}", tool, stepKey);
             return cached;
         }
-
-        String runId = AgentRunContext.get();
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
@@ -140,15 +138,14 @@ public class OrderAgentTools {
     public String cancelOrder(
             @ToolParam(description = "要取消的訂單 ID") String orderId) {
         String tool = "cancelOrder";
-        String stepKey = stepKey(tool, orderId);
+        String runId = AgentRunContext.get();
+        String stepKey = stepKey(runId, tool, orderId);
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
             log.info("[Tool] {} cache hit key={}", tool, stepKey);
             return cached;
         }
-
-        String runId = AgentRunContext.get();
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
@@ -180,15 +177,14 @@ public class OrderAgentTools {
     public String getOrderStatus(
             @ToolParam(description = "要查詢的訂單 ID") String orderId) {
         String tool = "getOrderStatus";
-        String stepKey = stepKey(tool, orderId);
+        String runId = AgentRunContext.get();
+        String stepKey = stepKey(runId, tool, orderId);
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
             log.info("[Tool] {} cache hit key={}", tool, stepKey);
             return cached;
         }
-
-        String runId = AgentRunContext.get();
         asyncStepService.saveStarted(runId, tool);
         publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
 
@@ -220,8 +216,7 @@ public class OrderAgentTools {
         return (e instanceof ServiceTransientException) ? "TRANSIENT_ERROR|" : "BUSINESS_ERROR|";
     }
 
-    private String stepKey(String toolName, String... params) {
-        String runId = AgentRunContext.get();
+    private String stepKey(String runId, String toolName, String... params) {
         return "step:" + runId + ":" + toolName + ":" + String.join(":", params);
     }
 }
