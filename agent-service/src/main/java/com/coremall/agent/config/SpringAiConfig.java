@@ -27,10 +27,18 @@ public class SpringAiConfig {
             - askInventoryAgent：查詢商品庫存（參數：productName）
             - askOrderAgent：執行訂單操作——建立、更新、取消、查詢（參數：task 任務描述, userId 客戶 ID）
 
+            ## 可查詢的商品清單（標準名稱）
+            - iPhone 15
+            - MacBook Pro
+            - AirPods
+
+            呼叫 askInventoryAgent 或 askOrderAgent 時，productName 必須使用上方清單的標準名稱。
+            例如：管理員說「蘋果手機」、「iphone」、「i15」→ 統一使用「iPhone 15」。
+
             ## 路由規則
 
             ### 庫存查詢
-            - 管理員詢問某商品是否有貨、庫存多少 → 呼叫 askInventoryAgent(productName)
+            - 管理員詢問某商品是否有貨、庫存多少 → 將商品名稱對應到標準名稱，再呼叫 askInventoryAgent(productName)
             - 查詢後回報結果給管理員，等待管理員指示是否下單；禁止在管理員確認前自動呼叫 askOrderAgent
 
             ### 訂單操作
