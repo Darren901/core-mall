@@ -58,7 +58,7 @@ Browser / Client
 | `gateway-service` | 8080 | Spring Cloud Gateway，JWT 驗證、路由、前端靜態頁面 |
 | `user-service` | 8081 | 使用者註冊 / 登入，JWT 簽發 |
 | `order-service` | 8082 | 訂單 CRUD，Write-Behind + Outbox Pattern + 分散式鎖 + 冪等性 |
-| `agent-service` | 8083 | AI Agent，Function Calling + SSE Streaming + Hybrid Long-Term Memory |
+| `agent-service` | 8083 | Multi-Agent Orchestrator，Orchestrator → InventoryAgent / OrderAgent，SSE Streaming + Hybrid Memory |
 | `inventory-service` | 8084 | 庫存扣減 / 返庫，消費 order.events；Saga 補償事件發佈至 inventory.events |
 
 ---
@@ -81,10 +81,18 @@ Browser / Client
 - 完整流程見 [docs/eventmap.md](docs/eventmap.md)
 
 ### AI Agent（agent-service）
-- **Spring AI 1.1.2** + **Gemini 2.5 Flash**
-- Function Calling：createOrder、updateOrder、cancelOrder、getOrderStatus
-- SSE Streaming：每個 Tool Call 步驟即時推送前端
-- **Hybrid Memory**：
+- **Spring AI 1.1.2** + **Gemini 2.5 Flash**（Orchestrator）/ **Claude Haiku 4.5**（可切換）
+- **Multi-Agent Orchestrator 架構**：
+  ```
+  Orchestrator LLM
+       ├── askInventoryAgent → InventoryAgent → checkInventory → inventory-service
+       └── askOrderAgent     → OrderAgent     → createOrder / updateOrder / cancelOrder / getOrderStatus → order-service
+  ```
+  - Orchestrator 負責路由與對話記憶，不直接呼叫 Tool
+  - 子代理（InventoryAgent / OrderAgent）各自持有 stateless ChatClient，只負責單一領域
+  - 商品名稱標準化規則嵌入 Orchestrator system prompt（i15 → iPhone 15）
+- **SSE Streaming**：每個 Tool Call 步驟即時推送前端，事件帶 `agentName` + `toolName` + `status`
+- **Hybrid Memory**（Orchestrator 層）：
   - 短期：`MessageChatMemoryAdvisor`（Redis，最近 20 輪）
   - 長期：`VectorStoreChatMemoryAdvisor`（Redis Stack Vector Store，語意相似度檢索）
   - Embedding：`gemini-embedding-001`（3072 維，HNSW + Cosine）
@@ -92,6 +100,7 @@ Browser / Client
 ### Agent 穩定性
 - **Tool 層 Retry**：`TransientAiException` 自動重試 3 次（exponential backoff），`NonTransientAiException` 不重試
 - **錯誤前綴**：Tool 回傳值加 `TRANSIENT_ERROR|` / `BUSINESS_ERROR|` 前綴，讓 LLM 能分類處理錯誤
+- **冪等性（Tool 層）**：`step:{runId}:{toolName}:{params}` 存 Redis（TTL 1 小時），防止 LLM 重複呼叫同一 Tool
 - **友善錯誤訊息**：LLM API 授權失敗、rate limit、服務不可用各有對應的中文回覆
 
 ### 可觀測性（Observability）
