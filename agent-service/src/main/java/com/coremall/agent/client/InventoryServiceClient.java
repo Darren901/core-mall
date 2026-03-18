@@ -63,6 +63,9 @@ public class InventoryServiceClient {
         return resp -> resp.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .map(body -> {
+                    if (resp.statusCode().value() == 404) {
+                        return new ServiceBusinessException("查無此商品");
+                    }
                     String message = extractMessage(body);
                     if (resp.statusCode().is5xxServerError()) {
                         return new ServiceTransientException(message);

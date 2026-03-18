@@ -63,16 +63,25 @@ class InventoryServiceClientTest {
     }
 
     @Test
-    @DisplayName("404 → 拋出 ServiceBusinessException，訊息來自 error.message")
-    void shouldThrowBusinessExceptionOn404() {
+    @DisplayName("404 有 body → 拋出 ServiceBusinessException，訊息固定為「查無此商品」")
+    void shouldThrowBusinessExceptionOn404WithBody() {
         mockWebServer.enqueue(new MockResponse()
                 .setResponseCode(404).addHeader("Content-Type", "application/json")
                 .setBody(ERROR_BODY_404));
 
         assertThatThrownBy(() -> client.getStock("不存在商品"))
                 .isInstanceOf(ServiceBusinessException.class)
-                .hasMessage("商品不存在")
-                .hasMessageNotContaining("404 Not Found");
+                .hasMessage("查無此商品");
+    }
+
+    @Test
+    @DisplayName("404 空 body（inventory-service notFound()）→ 拋出 ServiceBusinessException，訊息為「查無此商品」")
+    void shouldThrowBusinessExceptionOn404WithEmptyBody() {
+        mockWebServer.enqueue(new MockResponse().setResponseCode(404));
+
+        assertThatThrownBy(() -> client.getStock("不存在商品"))
+                .isInstanceOf(ServiceBusinessException.class)
+                .hasMessage("查無此商品");
     }
 
     @Test
