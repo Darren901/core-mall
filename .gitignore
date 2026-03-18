@@ -43,3 +43,6 @@ AGENTS.md
 application-sensitive.yml
 logs/
 *.log
+
+### Git Worktrees ###
+.worktrees/
