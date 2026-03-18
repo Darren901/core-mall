@@ -4,7 +4,6 @@ import com.coremall.agent.client.OrderServiceClient;
 import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.dto.OrderResult;
 import com.coremall.agent.service.AsyncStepService;
-import com.coremall.sharedkernel.exception.ServiceTransientException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
@@ -57,7 +56,7 @@ public class OrderAgentTools {
             @ToolParam(description = "購買數量，必須為正整數") int quantity) {
         String tool = "createOrder";
         String runId = AgentRunContext.get();
-        String stepKey = stepKey(runId, tool, userId, productName, String.valueOf(quantity));
+        String stepKey = AgentToolHelper.stepKey(runId, tool, userId, productName, String.valueOf(quantity));
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
@@ -83,7 +82,7 @@ public class OrderAgentTools {
             log.info("[Tool] {} succeeded orderId={}", tool, result.id());
             return response;
         } catch (Exception e) {
-            String error = errorPrefix(e) + "訂單建立失敗：" + e.getMessage();
+            String error = AgentToolHelper.errorPrefix(e) + "訂單建立失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
@@ -100,7 +99,7 @@ public class OrderAgentTools {
             @ToolParam(description = "新的購買數量，必須為正整數") int quantity) {
         String tool = "updateOrder";
         String runId = AgentRunContext.get();
-        String stepKey = stepKey(runId, tool, orderId, productName, String.valueOf(quantity));
+        String stepKey = AgentToolHelper.stepKey(runId, tool, orderId, productName, String.valueOf(quantity));
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
@@ -125,7 +124,7 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = errorPrefix(e) + "訂單更新失敗：" + e.getMessage();
+            String error = AgentToolHelper.errorPrefix(e) + "訂單更新失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
@@ -139,7 +138,7 @@ public class OrderAgentTools {
             @ToolParam(description = "要取消的訂單 ID") String orderId) {
         String tool = "cancelOrder";
         String runId = AgentRunContext.get();
-        String stepKey = stepKey(runId, tool, orderId);
+        String stepKey = AgentToolHelper.stepKey(runId, tool, orderId);
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
@@ -164,7 +163,7 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = errorPrefix(e) + "取消訂單失敗：" + e.getMessage();
+            String error = AgentToolHelper.errorPrefix(e) + "取消訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
@@ -178,7 +177,7 @@ public class OrderAgentTools {
             @ToolParam(description = "要查詢的訂單 ID") String orderId) {
         String tool = "getOrderStatus";
         String runId = AgentRunContext.get();
-        String stepKey = stepKey(runId, tool, orderId);
+        String stepKey = AgentToolHelper.stepKey(runId, tool, orderId);
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
@@ -203,20 +202,12 @@ public class OrderAgentTools {
 
             return response;
         } catch (Exception e) {
-            String error = errorPrefix(e) + "查詢訂單失敗：" + e.getMessage();
+            String error = AgentToolHelper.errorPrefix(e) + "查詢訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             return error;
         } finally {
             span.end();
         }
-    }
-
-    private String errorPrefix(Throwable e) {
-        return (e instanceof ServiceTransientException) ? "TRANSIENT_ERROR|" : "BUSINESS_ERROR|";
-    }
-
-    private String stepKey(String runId, String toolName, String... params) {
-        return "step:" + runId + ":" + toolName + ":" + String.join(":", params);
     }
 }

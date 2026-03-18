@@ -4,7 +4,6 @@ import com.coremall.agent.client.InventoryServiceClient;
 import com.coremall.agent.dto.AgentStepEvent;
 import com.coremall.agent.dto.InventoryResult;
 import com.coremall.agent.service.AsyncStepService;
-import com.coremall.sharedkernel.exception.ServiceTransientException;
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
@@ -55,7 +54,7 @@ public class InventoryAgentTools {
             @ToolParam(description = "要查詢庫存的商品名稱") String productName) {
         String tool = "checkInventory";
         String runId = AgentRunContext.get();
-        String stepKey = stepKey(runId, tool, productName);
+        String stepKey = AgentToolHelper.stepKey(runId, tool, productName);
 
         String cached = redisTemplate.opsForValue().get(stepKey);
         if (cached != null) {
@@ -81,7 +80,7 @@ public class InventoryAgentTools {
             log.info("[Tool] {} succeeded productName={} quantity={}", tool, productName, result.quantity());
             return response;
         } catch (Exception e) {
-            String error = errorPrefix(e) + "查詢庫存失敗：" + e.getMessage();
+            String error = AgentToolHelper.errorPrefix(e) + "查詢庫存失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
             publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
@@ -89,13 +88,5 @@ public class InventoryAgentTools {
         } finally {
             span.end();
         }
-    }
-
-    private String errorPrefix(Throwable e) {
-        return (e instanceof ServiceTransientException) ? "TRANSIENT_ERROR|" : "BUSINESS_ERROR|";
-    }
-
-    private String stepKey(String runId, String toolName, String... params) {
-        return "step:" + runId + ":" + toolName + ":" + String.join(":", params);
     }
 }
