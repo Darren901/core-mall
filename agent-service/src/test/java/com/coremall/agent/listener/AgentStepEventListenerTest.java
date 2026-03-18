@@ -11,6 +11,7 @@ import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.mock;
 
 @DisplayName("AgentStepEventListener - AgentStepEvent → SSE 推送")
 class AgentStepEventListenerTest {
@@ -27,14 +28,14 @@ class AgentStepEventListenerTest {
     @Test
     @DisplayName("onStepEvent：runId 不存在 → 靜默忽略，不拋例外")
     void shouldSilentlyIgnoreEventForUnknownRunId() {
-        AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "SUCCEEDED", "ok");
+        AgentStepEvent event = new AgentStepEvent("unknown-run", "OrderAgent", "createOrder", "SUCCEEDED", "ok");
         assertThatCode(() -> listener.onStepEvent(event)).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("onStepEvent：payload 為 null → 正常處理不拋例外")
     void shouldHandleNullPayloadInStepEvent() {
-        AgentStepEvent event = new AgentStepEvent("unknown-run", "createOrder", "STARTED", null);
+        AgentStepEvent event = new AgentStepEvent("unknown-run", "OrderAgent", "createOrder", "STARTED", null);
         assertThatCode(() -> listener.onStepEvent(event)).doesNotThrowAnyException();
     }
 
@@ -45,7 +46,7 @@ class AgentStepEventListenerTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        listener.onStepEvent(new AgentStepEvent(runId, "createOrder", "STARTED", null));
+        listener.onStepEvent(new AgentStepEvent(runId, "OrderAgent", "createOrder", "STARTED", null));
 
         StepVerifier.create(sink.asFlux().take(1))
                 .assertNext(sse -> {
@@ -63,7 +64,7 @@ class AgentStepEventListenerTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        listener.onStepEvent(new AgentStepEvent(runId, "createOrder", "SUCCEEDED", "訂單已建立，ID: order-1"));
+        listener.onStepEvent(new AgentStepEvent(runId, "OrderAgent", "createOrder", "SUCCEEDED", "訂單已建立，ID: order-1"));
 
         StepVerifier.create(sink.asFlux().take(1))
                 .assertNext(sse -> {
@@ -75,13 +76,28 @@ class AgentStepEventListenerTest {
     }
 
     @Test
+    @DisplayName("onStepEvent：SSE data 包含 agentName 欄位")
+    void shouldIncludeAgentNameInSseData() {
+        String runId = "run-004";
+        sinkRegistry.register(runId);
+        Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
+
+        listener.onStepEvent(new AgentStepEvent(runId, "InventoryAgent", "checkInventory", "STARTED", null));
+
+        StepVerifier.create(sink.asFlux().take(1))
+                .assertNext(sse -> assertThat(sse.data()).contains("InventoryAgent"))
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
     @DisplayName("onStepEvent：event 名稱依 status 小寫化（FAILED → step-failed）")
     void shouldLowercaseStatusForEventName() {
         String runId = "run-003";
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        listener.onStepEvent(new AgentStepEvent(runId, "cancelOrder", "FAILED", "錯誤訊息"));
+        listener.onStepEvent(new AgentStepEvent(runId, "OrderAgent", "cancelOrder", "FAILED", "錯誤訊息"));
 
         StepVerifier.create(sink.asFlux().take(1))
                 .assertNext(sse -> assertThat(sse.event()).isEqualTo("step-failed"))

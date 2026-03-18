@@ -30,6 +30,7 @@ public class OrderAgentTools {
 
     private static final Logger log = LoggerFactory.getLogger(OrderAgentTools.class);
     private static final Duration STEP_IDEM_TTL = Duration.ofHours(1);
+    static final String AGENT_NAME = "OrderAgent";
 
     private final OrderServiceClient orderServiceClient;
     private final StringRedisTemplate redisTemplate;
@@ -64,7 +65,7 @@ public class OrderAgentTools {
             return cached;
         }
         asyncStepService.saveStarted(runId, tool);
-        publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
+        publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "STARTED", null));
 
         Span span = tracer.nextSpan()
                 .name("agent.tool.createOrder")
@@ -76,7 +77,7 @@ public class OrderAgentTools {
             String response = "訂單已建立，ID: " + result.id();
 
             asyncStepService.saveCompleted(runId, tool, "SUCCEEDED", response);
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "SUCCEEDED", response));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "SUCCEEDED", response));
             redisTemplate.opsForValue().set(stepKey, response, STEP_IDEM_TTL);
 
             log.info("[Tool] {} succeeded orderId={}", tool, result.id());
@@ -84,7 +85,7 @@ public class OrderAgentTools {
         } catch (Exception e) {
             String error = AgentToolHelper.errorPrefix(e) + "訂單建立失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
             return error;
         } finally {
@@ -107,7 +108,7 @@ public class OrderAgentTools {
             return cached;
         }
         asyncStepService.saveStarted(runId, tool);
-        publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
+        publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "STARTED", null));
 
         Span span = tracer.nextSpan()
                 .name("agent.tool.updateOrder")
@@ -119,14 +120,14 @@ public class OrderAgentTools {
             String response = "訂單已更新，ID: " + result.id() + "，數量: " + result.quantity();
 
             asyncStepService.saveCompleted(runId, tool, "SUCCEEDED", response);
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "SUCCEEDED", response));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "SUCCEEDED", response));
             redisTemplate.opsForValue().set(stepKey, response, STEP_IDEM_TTL);
 
             return response;
         } catch (Exception e) {
             String error = AgentToolHelper.errorPrefix(e) + "訂單更新失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "FAILED", error));
             return error;
         } finally {
             span.end();
@@ -146,7 +147,7 @@ public class OrderAgentTools {
             return cached;
         }
         asyncStepService.saveStarted(runId, tool);
-        publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
+        publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "STARTED", null));
 
         Span span = tracer.nextSpan()
                 .name("agent.tool.cancelOrder")
@@ -158,14 +159,14 @@ public class OrderAgentTools {
             String response = "訂單 " + orderId + " 已取消";
 
             asyncStepService.saveCompleted(runId, tool, "SUCCEEDED", response);
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "SUCCEEDED", response));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "SUCCEEDED", response));
             redisTemplate.opsForValue().set(stepKey, response, STEP_IDEM_TTL);
 
             return response;
         } catch (Exception e) {
             String error = AgentToolHelper.errorPrefix(e) + "取消訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "FAILED", error));
             return error;
         } finally {
             span.end();
@@ -185,7 +186,7 @@ public class OrderAgentTools {
             return cached;
         }
         asyncStepService.saveStarted(runId, tool);
-        publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
+        publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "STARTED", null));
 
         Span span = tracer.nextSpan()
                 .name("agent.tool.getOrderStatus")
@@ -197,14 +198,14 @@ public class OrderAgentTools {
                     result.id(), result.status(), result.productName(), result.quantity());
 
             asyncStepService.saveCompleted(runId, tool, "SUCCEEDED", response);
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "SUCCEEDED", response));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "SUCCEEDED", response));
             redisTemplate.opsForValue().set(stepKey, response, STEP_IDEM_TTL);
 
             return response;
         } catch (Exception e) {
             String error = AgentToolHelper.errorPrefix(e) + "查詢訂單失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool, "FAILED", error));
             return error;
         } finally {
             span.end();

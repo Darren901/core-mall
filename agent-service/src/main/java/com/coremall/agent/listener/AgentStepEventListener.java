@@ -25,8 +25,8 @@ public class AgentStepEventListener {
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(event.runId());
         if (sink == null) return;
 
-        String data = String.format("{\"toolName\":\"%s\",\"status\":\"%s\",\"payload\":\"%s\"}",
-                event.toolName(), event.status(),
+        String data = String.format("{\"agentName\":\"%s\",\"toolName\":\"%s\",\"status\":\"%s\",\"payload\":\"%s\"}",
+                event.agentName(), event.toolName(), event.status(),
                 event.payload() != null ? event.payload().replace("\"", "'") : "");
 
         sink.tryEmitNext(ServerSentEvent.<String>builder()

@@ -19,10 +19,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import com.coremall.agent.dto.AgentStepEvent;
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -278,5 +282,22 @@ class OrderAgentToolsTest {
         String response = orderAgentTools.cancelOrder("order-3");
 
         assertThat(response).startsWith("TRANSIENT_ERROR|");
+    }
+
+    @Test
+    @DisplayName("createOrder：發佈的 AgentStepEvent 包含 agentName = OrderAgent")
+    void shouldPublishEventWithOrderAgentName() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        OrderResult result = new OrderResult("order-1", "user-1", "Apple", 5, "CREATED", "2025-01-01T00:00:00Z");
+        when(orderServiceClient.createOrder(anyString(), anyString(), anyInt(), anyString()))
+                .thenReturn(result);
+
+        orderAgentTools.createOrder("user-1", "Apple", 5);
+
+        ArgumentCaptor<AgentStepEvent> captor = ArgumentCaptor.forClass(AgentStepEvent.class);
+        verify(publisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(AgentStepEvent::agentName)
+                .containsOnly("OrderAgent");
     }
 }

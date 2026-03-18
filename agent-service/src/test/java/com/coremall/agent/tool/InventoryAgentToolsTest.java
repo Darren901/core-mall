@@ -19,9 +19,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import com.coremall.agent.dto.AgentStepEvent;
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -147,5 +151,21 @@ class InventoryAgentToolsTest {
 
         verify(asyncStepService).saveStarted(anyString(), anyString());
         verify(asyncStepService).saveCompleted(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("checkInventory：發佈的 AgentStepEvent 包含 agentName = InventoryAgent")
+    void shouldPublishEventWithInventoryAgentName() {
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(inventoryServiceClient.getStock("iPhone 15"))
+                .thenReturn(new InventoryResult("iPhone 15", 10));
+
+        inventoryAgentTools.checkInventory("iPhone 15");
+
+        ArgumentCaptor<AgentStepEvent> captor = ArgumentCaptor.forClass(AgentStepEvent.class);
+        verify(publisher, atLeastOnce()).publishEvent(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(AgentStepEvent::agentName)
+                .containsOnly("InventoryAgent");
     }
 }

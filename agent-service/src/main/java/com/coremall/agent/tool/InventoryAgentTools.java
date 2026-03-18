@@ -30,6 +30,7 @@ public class InventoryAgentTools {
 
     private static final Logger log = LoggerFactory.getLogger(InventoryAgentTools.class);
     private static final Duration STEP_IDEM_TTL = Duration.ofHours(1);
+    static final String AGENT_NAME = "InventoryAgent";
 
     private final InventoryServiceClient inventoryServiceClient;
     private final StringRedisTemplate redisTemplate;
@@ -62,7 +63,7 @@ public class InventoryAgentTools {
             return cached;
         }
         asyncStepService.saveStarted(runId, tool);
-        publisher.publishEvent(new AgentStepEvent(runId, tool, "STARTED", null));
+        publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool,"STARTED", null));
 
         Span span = tracer.nextSpan()
                 .name("agent.tool.checkInventory")
@@ -74,7 +75,7 @@ public class InventoryAgentTools {
             String response = String.format("%s 庫存：%d 件，%s", result.productName(), result.quantity(), availability);
 
             asyncStepService.saveCompleted(runId, tool, "SUCCEEDED", response);
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "SUCCEEDED", response));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool,"SUCCEEDED", response));
             redisTemplate.opsForValue().set(stepKey, response, STEP_IDEM_TTL);
 
             log.info("[Tool] {} succeeded productName={} quantity={}", tool, productName, result.quantity());
@@ -82,7 +83,7 @@ public class InventoryAgentTools {
         } catch (Exception e) {
             String error = AgentToolHelper.errorPrefix(e) + "查詢庫存失敗：" + e.getMessage();
             asyncStepService.saveCompleted(runId, tool, "FAILED", e.getMessage());
-            publisher.publishEvent(new AgentStepEvent(runId, tool, "FAILED", error));
+            publisher.publishEvent(new AgentStepEvent(runId, AGENT_NAME, tool,"FAILED", error));
             log.warn("[Tool] {} failed: {}", tool, e.getMessage());
             return error;
         } finally {
