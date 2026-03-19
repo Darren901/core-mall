@@ -12,13 +12,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import com.coremall.agent.tool.McpStepPublishingToolCallback;
+import org.springframework.ai.mcp.AsyncMcpToolCallbackProvider;
 import org.springframework.ai.retry.NonTransientAiException;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.ai.retry.TransientAiException;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,6 +44,8 @@ public class AgentRunExecutor {
     private final AgentSinkRegistry sinkRegistry;
     private final ObjectMapper objectMapper;
     private final Tracer tracer;
+    private final AsyncMcpToolCallbackProvider mcpToolCallbackProvider;
+    private final ApplicationEventPublisher publisher;
 
     public AgentRunExecutor(ChatClientFactory chatClientFactory,
                             InventoryAgent inventoryAgent,
@@ -46,7 +53,9 @@ public class AgentRunExecutor {
                             AgentRunRepository agentRunRepository,
                             AgentSinkRegistry sinkRegistry,
                             ObjectMapper objectMapper,
-                            Tracer tracer) {
+                            Tracer tracer,
+                            AsyncMcpToolCallbackProvider mcpToolCallbackProvider,
+                            ApplicationEventPublisher publisher) {
         this.chatClientFactory = chatClientFactory;
         this.inventoryAgent = inventoryAgent;
         this.orderAgent = orderAgent;
@@ -54,6 +63,8 @@ public class AgentRunExecutor {
         this.sinkRegistry = sinkRegistry;
         this.objectMapper = objectMapper;
         this.tracer = tracer;
+        this.mcpToolCallbackProvider = mcpToolCallbackProvider;
+        this.publisher = publisher;
     }
 
     @Async("stepAsyncExecutor")
@@ -71,6 +82,7 @@ public class AgentRunExecutor {
                     .user(userMessage)
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId.replace("-", "")))
                     .tools(inventoryAgent, orderAgent)
+                    .toolCallbacks(wrapWithStepPublishing(mcpToolCallbackProvider.getToolCallbacks()))
                     .call()
                     .content();
 
@@ -106,6 +118,12 @@ public class AgentRunExecutor {
             span.end();
             AgentRunContext.clear();
         }
+    }
+
+    private ToolCallback[] wrapWithStepPublishing(ToolCallback[] callbacks) {
+        return Arrays.stream(callbacks)
+                .map(cb -> new McpStepPublishingToolCallback(cb, publisher))
+                .toArray(ToolCallback[]::new);
     }
 
     private String toFriendlyError(Exception e) {

@@ -19,12 +19,24 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
   ai:
+    mcp:
+      client:
+        enabled: true
+        type: ASYNC
+        stdio:
+          connections:
+            filesystem:
+              command: npx
+              args:
+                - -y
+                - "@modelcontextprotocol/server-filesystem"
+                - ${user.dir}/data
     google:
       genai:
         api-key: ${GOOGLE_GENAI_API_KEY:}
         chat:
           options:
-            model: gemini-2.5-flash
+            model: gemini-3.1-flash-lite-preview
             temperature: 0.2
         embedding:
           api-key: ${GOOGLE_GENAI_API_KEY:}
@@ -55,6 +67,8 @@ management:
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  level:
+    org.springframework.ai.mcp: DEBUG
 
 order-service:
   base-url: http://localhost:8082

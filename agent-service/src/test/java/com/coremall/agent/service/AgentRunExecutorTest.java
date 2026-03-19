@@ -20,8 +20,10 @@ import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.mcp.AsyncMcpToolCallbackProvider;
 import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.ai.retry.TransientAiException;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
@@ -33,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +57,12 @@ class AgentRunExecutorTest {
 
     @Mock
     private AgentRunRepository agentRunRepository;
+
+    @Mock
+    private AsyncMcpToolCallbackProvider mcpToolCallbackProvider;
+
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Mock
     private Tracer tracer;
@@ -80,8 +89,10 @@ class AgentRunExecutorTest {
         lenient().when(chatClientFactory.getClient(anyString())).thenReturn(chatClient);
         lenient().when(chatClientFactory.getClient(null)).thenReturn(chatClient);
 
+        lenient().when(mcpToolCallbackProvider.getToolCallbacks()).thenReturn(new ToolCallback[0]);
+
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClientFactory, inventoryAgent, orderAgent, agentRunRepository, sinkRegistry, objectMapper, tracer);
+        executor = new AgentRunExecutor(chatClientFactory, inventoryAgent, orderAgent, agentRunRepository, sinkRegistry, objectMapper, tracer, mcpToolCallbackProvider, eventPublisher);
     }
 
     @Test
@@ -92,7 +103,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("訂單已建立，ID: order-abc");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -116,7 +127,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException("LLM timeout"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -138,7 +149,7 @@ class AgentRunExecutorTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
@@ -154,7 +165,7 @@ class AgentRunExecutorTest {
         AgentRun run = AgentRun.create("查詢訂單");
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("查詢完成");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -170,7 +181,7 @@ class AgentRunExecutorTest {
         AgentRun run = AgentRun.create("查詢訂單");
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException("timeout"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -186,7 +197,7 @@ class AgentRunExecutorTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
@@ -201,7 +212,7 @@ class AgentRunExecutorTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("ok");
         when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
 
@@ -216,7 +227,7 @@ class AgentRunExecutorTest {
         String runId = UUID.randomUUID().toString();
         AgentRun run = AgentRun.create("查詢訂單");
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("查詢完成");
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -234,7 +245,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException((String) null));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -257,7 +268,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new NonTransientAiException(
                         "HTTP 400 - {\"type\":\"error\",\"error\":{\"message\":\"Your credit balance is too low\"}}"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
@@ -281,7 +292,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new NonTransientAiException("HTTP 401 - {\"error\":{\"type\":\"invalid_api_key\"}}"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -304,7 +315,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new TransientAiException("HTTP 429 - Too Many Requests"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -327,7 +338,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new NonTransientAiException("HTTP 400 - Bad Request"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -350,7 +361,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new TransientAiException("Service temporarily unavailable"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 
@@ -373,7 +384,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException("boom"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
         Mockito.doThrow(new com.fasterxml.jackson.core.JsonProcessingException("fail") {})
@@ -391,6 +402,24 @@ class AgentRunExecutorTest {
     }
 
     @Test
+    @DisplayName("execute：MCP tool callbacks 被加入到 ChatClient 呼叫中")
+    void shouldIncludeMcpToolCallbacksInChatClientCall() {
+        String runId = UUID.randomUUID().toString();
+        sinkRegistry.register(runId);
+        ToolCallback mcpCallback = mock(ToolCallback.class);
+        when(mcpToolCallbackProvider.getToolCallbacks()).thenReturn(new ToolCallback[]{mcpCallback});
+
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class))
+                .tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
+                .thenReturn("ok");
+        when(agentRunRepository.findById(any())).thenReturn(Optional.empty());
+
+        executor.execute(runId, "U001", "test", null);
+
+        verify(mcpToolCallbackProvider).getToolCallbacks();
+    }
+
+    @Test
     @DisplayName("execute 失敗：一般 RuntimeException → 不洩漏原始訊息，回傳通用友善訊息")
     void shouldNotLeakRawMessageForGenericError() {
         String runId = UUID.randomUUID().toString();
@@ -398,7 +427,7 @@ class AgentRunExecutorTest {
         sinkRegistry.register(runId);
         Sinks.Many<ServerSentEvent<String>> sink = sinkRegistry.get(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(java.util.function.Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException("internal stack trace detail: com.internal.SomeClass"));
         when(agentRunRepository.findById(UUID.fromString(runId))).thenReturn(Optional.of(run));
 

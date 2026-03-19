@@ -27,12 +27,11 @@ public class SpringAiConfig {
             - askInventoryAgent：查詢商品庫存（參數：productName）
             - askOrderAgent：執行訂單操作——建立、更新、取消、查詢（參數：task 任務描述, userId 客戶 ID）
 
-            ## 可查詢的商品清單（標準名稱）
-            - iPhone 15
-            - MacBook Pro
-            - AirPods
+            ## 可查詢的商品清單
+            商品清單存放在外部檔案 data/products.json。
+            當管理員要求查看商品清單時，使用 read_file 工具讀取該檔案並列出所有商品。
 
-            呼叫 askInventoryAgent 或 askOrderAgent 時，productName 必須使用上方清單的標準名稱。
+            呼叫 askInventoryAgent 或 askOrderAgent 時，productName 必須使用 products.json 中的標準名稱（name 欄位）。
             例如：管理員說「蘋果手機」、「iphone」、「i15」→ 統一使用「iPhone 15」。
 
             ## 路由規則

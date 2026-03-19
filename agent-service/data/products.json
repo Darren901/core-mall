@@ -1,0 +1,25 @@
+{
+  "products": [
+    {
+      "id": "P001",
+      "name": "iPhone 15",
+      "category": "手機",
+      "price": 29900,
+      "currency": "TWD"
+    },
+    {
+      "id": "P002",
+      "name": "MacBook Pro",
+      "category": "筆記型電腦",
+      "price": 59900,
+      "currency": "TWD"
+    },
+    {
+      "id": "P003",
+      "name": "AirPods",
+      "category": "耳機",
+      "price": 4990,
+      "currency": "TWD"
+    }
+  ]
+}

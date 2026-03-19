@@ -15,12 +15,15 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.mcp.AsyncMcpToolCallbackProvider;
+import org.springframework.ai.tool.ToolCallback;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +55,12 @@ class AgentRunExecutorTracingTest {
     @Mock
     private Tracer.SpanInScope mockScope;
 
+    @Mock
+    private AsyncMcpToolCallbackProvider mcpToolCallbackProvider;
+
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -66,9 +75,10 @@ class AgentRunExecutorTracingTest {
         when(mockSpan.start()).thenReturn(mockSpan);
         when(tracer.withSpan(mockSpan)).thenReturn(mockScope);
         when(chatClientFactory.getClient(any())).thenReturn(chatClient);
+        lenient().when(mcpToolCallbackProvider.getToolCallbacks()).thenReturn(new ToolCallback[0]);
 
         sinkRegistry = new AgentSinkRegistry();
-        executor = new AgentRunExecutor(chatClientFactory, inventoryAgent, orderAgent, agentRunRepository, sinkRegistry, objectMapper, tracer);
+        executor = new AgentRunExecutor(chatClientFactory, inventoryAgent, orderAgent, agentRunRepository, sinkRegistry, objectMapper, tracer, mcpToolCallbackProvider, eventPublisher);
     }
 
     @Test
@@ -78,7 +88,7 @@ class AgentRunExecutorTracingTest {
         String userId = "user-001";
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("ok");
 
         executor.execute(runId, userId, "測試訊息", null);
@@ -95,7 +105,7 @@ class AgentRunExecutorTracingTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenReturn("ok");
 
         executor.execute(runId, "U001", "test", null);
@@ -109,7 +119,7 @@ class AgentRunExecutorTracingTest {
         String runId = UUID.randomUUID().toString();
         sinkRegistry.register(runId);
 
-        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).call().content())
+        when(chatClient.prompt().user(anyString()).advisors(any(Consumer.class)).tools(any(), any()).toolCallbacks(any(ToolCallback[].class)).call().content())
                 .thenThrow(new RuntimeException("LLM error"));
 
         executor.execute(runId, "U001", "test", null);
